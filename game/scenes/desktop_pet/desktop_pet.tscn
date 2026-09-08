@@ -1,7 +1,9 @@
 [gd_scene format=3 uid="uid://xhn1pe1vos8s"]
 
+[ext_resource type="Script" uid="uid://cjynqld0mvd65" path="res://scripts/desktop_pet.gd" id="1_7smd4"]
 [ext_resource type="PackedScene" uid="uid://dk7qbu0y45qw" path="res://scenes/pet/pet.tscn" id="1_u2nir"]
 
 [node name="DesktopPet" type="Node2D" unique_id=1959601344]
+script = ExtResource("1_7smd4")
 
 [node name="Pet" parent="." unique_id=953983132 instance=ExtResource("1_u2nir")]
