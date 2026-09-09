@@ -2,6 +2,8 @@
 
 [ext_resource type="Script" uid="uid://ce82ys22bej2d" path="res://scripts/Pet.gd" id="1_srtiq"]
 [ext_resource type="Texture2D" uid="uid://wh41ops8fcqk" path="res://sprites/elly/frames/idle.png" id="1_vey2l"]
+[ext_resource type="Texture2D" uid="uid://cxh4022yp2687" path="res://sprites/elly/frames/gaming_1.png" id="2_vey2l"]
+[ext_resource type="Texture2D" uid="uid://daf2dllutmgp7" path="res://sprites/elly/frames/gaming_2.png" id="3_srtiq"]
 [ext_resource type="Texture2D" uid="uid://cuwb2dwtybd52" path="res://sprites/elly/frames/walk_1.png" id="3_ur5mw"]
 [ext_resource type="Texture2D" uid="uid://c3bp4l73qoo43" path="res://sprites/elly/frames/walk_2.png" id="4_dw2dr"]
 [ext_resource type="Texture2D" uid="uid://dqwttqhiu3tem" path="res://sprites/elly/frames/walk_3.png" id="5_vey2l"]
@@ -12,10 +14,29 @@
 animations = [{
 "frames": [{
 "duration": 1.0,
+"texture": ExtResource("2_vey2l")
+}, {
+"duration": 1.0,
+"texture": ExtResource("3_srtiq")
+}],
+"loop": true,
+"name": &"gaming",
+"speed": 5.0
+}, {
+"frames": [{
+"duration": 1.0,
 "texture": ExtResource("1_vey2l")
 }],
 "loop": true,
 "name": &"idle",
+"speed": 5.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": ExtResource("7_vey2l")
+}],
+"loop": true,
+"name": &"surprised",
 "speed": 5.0
 }, {
 "frames": [{
@@ -34,14 +55,6 @@ animations = [{
 "loop": true,
 "name": &"walk",
 "speed": 4.0
-}, {
-"frames": [{
-"duration": 1.0,
-"texture": ExtResource("7_vey2l")
-}],
-"loop": true,
-"name": &"surprised",
-"speed": 5.0
 }]
 
 [node name="Pet" type="Node2D" unique_id=953983132]
@@ -50,4 +63,4 @@ script = ExtResource("1_srtiq")
 [node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="." unique_id=1149878326]
 position = Vector2(32, 41)
 sprite_frames = SubResource("SpriteFrames_mun0n")
-animation = &"idle"
+animation = &"gaming"
