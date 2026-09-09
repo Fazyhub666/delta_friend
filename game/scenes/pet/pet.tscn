@@ -6,6 +6,7 @@
 [ext_resource type="Texture2D" uid="uid://c3bp4l73qoo43" path="res://sprites/elly/frames/walk_2.png" id="4_dw2dr"]
 [ext_resource type="Texture2D" uid="uid://dqwttqhiu3tem" path="res://sprites/elly/frames/walk_3.png" id="5_vey2l"]
 [ext_resource type="Texture2D" uid="uid://bjd81jc041j56" path="res://sprites/elly/frames/walk_4.png" id="6_srtiq"]
+[ext_resource type="Texture2D" uid="uid://d4ixemghxcb6" path="res://sprites/elly/frames/surprised.png" id="7_vey2l"]
 
 [sub_resource type="SpriteFrames" id="SpriteFrames_mun0n"]
 animations = [{
@@ -33,6 +34,14 @@ animations = [{
 "loop": true,
 "name": &"walk",
 "speed": 4.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": ExtResource("7_vey2l")
+}],
+"loop": true,
+"name": &"surprised",
+"speed": 5.0
 }]
 
 [node name="Pet" type="Node2D" unique_id=953983132]

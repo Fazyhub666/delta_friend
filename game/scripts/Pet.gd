@@ -14,3 +14,7 @@ func walk(direction: int) -> void:
 
 func idle() -> void:
 	_animated_sprite.play("idle")
+
+
+func surprised() -> void:
+	_animated_sprite.play("surprised")
