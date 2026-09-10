@@ -6,9 +6,21 @@
 [ext_resource type="Texture2D" uid="uid://daf2dllutmgp7" path="res://sprites/elly/frames/gaming_2.png" id="3_srtiq"]
 [ext_resource type="Texture2D" uid="uid://cuwb2dwtybd52" path="res://sprites/elly/frames/walk_1.png" id="3_ur5mw"]
 [ext_resource type="Texture2D" uid="uid://c3bp4l73qoo43" path="res://sprites/elly/frames/walk_2.png" id="4_dw2dr"]
+[ext_resource type="Texture2D" uid="uid://rj6avysd86lk" path="res://sprites/elly/frames/scared/scared_1.png" id="5_rfnce"]
 [ext_resource type="Texture2D" uid="uid://dqwttqhiu3tem" path="res://sprites/elly/frames/walk_3.png" id="5_vey2l"]
+[ext_resource type="Texture2D" uid="uid://cmugsawnvame8" path="res://sprites/elly/frames/scared/scared_2.png" id="6_nhmr5"]
 [ext_resource type="Texture2D" uid="uid://bjd81jc041j56" path="res://sprites/elly/frames/walk_4.png" id="6_srtiq"]
 [ext_resource type="Texture2D" uid="uid://d4ixemghxcb6" path="res://sprites/elly/frames/surprised.png" id="7_vey2l"]
+[ext_resource type="Texture2D" uid="uid://c30yry11s01oc" path="res://sprites/elly/frames/scared/scared_3.png" id="7_y55iv"]
+[ext_resource type="Texture2D" uid="uid://c3qwv1f7ecjdk" path="res://sprites/elly/frames/scared/scared_4.png" id="8_0xa6o"]
+[ext_resource type="Texture2D" uid="uid://bk5j4occ841od" path="res://sprites/elly/frames/scared/scared_5.png" id="9_s1fmu"]
+[ext_resource type="Texture2D" uid="uid://d1ruimtt0ymd3" path="res://sprites/elly/frames/scared/scared_6.png" id="10_etcm2"]
+[ext_resource type="Texture2D" uid="uid://djdnmwxr5vnpd" path="res://sprites/elly/frames/scared/scared_7.png" id="11_mpyet"]
+[ext_resource type="Texture2D" uid="uid://c2kysnhjoblsy" path="res://sprites/elly/frames/scared/scared_8.png" id="12_2goke"]
+[ext_resource type="Texture2D" uid="uid://eggk1dsg8krj" path="res://sprites/elly/frames/scared/scared_9.png" id="13_6blan"]
+[ext_resource type="Texture2D" uid="uid://ckjcfyk7tgbrf" path="res://sprites/elly/frames/scared/scared_10.png" id="14_qcolf"]
+[ext_resource type="Texture2D" uid="uid://baq1bbs5dcqd1" path="res://sprites/elly/frames/scared/scared_11.png" id="15_0nu4h"]
+[ext_resource type="Texture2D" uid="uid://5ar7ivnyvxuv" path="res://sprites/elly/frames/scared/scared_12.png" id="16_cgi2e"]
 
 [sub_resource type="SpriteFrames" id="SpriteFrames_mun0n"]
 animations = [{
@@ -30,6 +42,47 @@ animations = [{
 "loop": true,
 "name": &"idle",
 "speed": 5.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": ExtResource("5_rfnce")
+}, {
+"duration": 1.0,
+"texture": ExtResource("6_nhmr5")
+}, {
+"duration": 1.0,
+"texture": ExtResource("7_y55iv")
+}, {
+"duration": 1.0,
+"texture": ExtResource("8_0xa6o")
+}, {
+"duration": 1.0,
+"texture": ExtResource("9_s1fmu")
+}, {
+"duration": 1.0,
+"texture": ExtResource("10_etcm2")
+}, {
+"duration": 1.0,
+"texture": ExtResource("11_mpyet")
+}, {
+"duration": 1.0,
+"texture": ExtResource("12_2goke")
+}, {
+"duration": 1.0,
+"texture": ExtResource("13_6blan")
+}, {
+"duration": 1.0,
+"texture": ExtResource("14_qcolf")
+}, {
+"duration": 1.0,
+"texture": ExtResource("15_0nu4h")
+}, {
+"duration": 1.0,
+"texture": ExtResource("16_cgi2e")
+}],
+"loop": true,
+"name": &"scared",
+"speed": 3.0
 }, {
 "frames": [{
 "duration": 1.0,
@@ -61,6 +114,6 @@ animations = [{
 script = ExtResource("1_srtiq")
 
 [node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="." unique_id=1149878326]
-position = Vector2(32, 41)
+position = Vector2(64, 41)
 sprite_frames = SubResource("SpriteFrames_mun0n")
-animation = &"gaming"
+animation = &"idle"

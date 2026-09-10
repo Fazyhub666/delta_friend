@@ -1,6 +1,9 @@
 extends Node2D
 
-enum State { REST, WALK, SIT, GAMING, DRAG, FALLING }
+const MausTexture := preload("res://sprites/maus/idle.png")
+const MAUS_SIZE := Vector2(35, 12)
+
+enum State { REST, WALK, SIT, GAMING, WATCH, SCARED, DRAG, FALLING }
 
 @export var walk_speed := 60.0
 @export_range(0.2, 3.0, 0.1) var min_walk_time := 1.0
@@ -15,6 +18,9 @@ enum State { REST, WALK, SIT, GAMING, DRAG, FALLING }
 @export_range(5.0, 60.0, 0.5) var max_game_time := 15.0
 @export_range(0.0, 40.0, 1.0) var sit_offset := 18.0
 @export_range(0.0, 40.0, 1.0) var sit_sprite_raise := 18.0
+@export_range(0.0, 1.0, 0.05) var maus_chance := 0.3
+@export_range(0.2, 3.0, 0.1) var watch_time := 0.8
+@export_range(0.0, 40.0, 1.0) var scared_offset := 6.0
 
 var _state := State.REST
 var _state_timer := 0.0
@@ -25,6 +31,7 @@ var _walk_bounds := Rect2()
 var _screen_bounds := Rect2()
 var _grab_offset := Vector2()
 var _velocity := Vector2()
+var _maus: Sprite2D
 
 @onready var _window := get_window()
 @onready var _pet: Node2D = $Pet
@@ -41,6 +48,16 @@ func _unhandled_input(event):
 		if event.pressed:
 			if _state == State.SIT or _state == State.GAMING:
 				_pet.set_seated(false, sit_sprite_raise)
+			if _state == State.WATCH or _state == State.SCARED:
+				if _clicked_on_maus(event.position):
+					_remove_maus()
+					_reset_to_ground()
+					_state = State.REST
+					_state_timer = randf_range(min_rest_time, max_rest_time)
+					_pet.idle()
+					return
+				_remove_maus()
+				_reset_to_ground()
 			_grab_offset = Vector2(_window.position) - Vector2(DisplayServer.mouse_get_position())
 			_velocity = Vector2.ZERO
 			_state = State.DRAG
@@ -55,7 +72,9 @@ func _process(delta):
 		State.REST:
 			_state_timer -= delta
 			if _state_timer <= 0.0:
-				if randf() < game_chance:
+				if randf() < maus_chance:
+					_start_maus_event()
+				elif randf() < game_chance:
 					_start_sit()
 				else:
 					_start_walk()
@@ -72,6 +91,12 @@ func _process(delta):
 			_state_timer -= delta
 			if _state_timer <= 0.0:
 				_stop_gaming()
+		State.WATCH:
+			_state_timer -= delta
+			if _state_timer <= 0.0:
+				_enter_scared()
+		State.SCARED:
+			pass
 		State.DRAG:
 			_tick_drag(delta)
 		State.FALLING:
@@ -133,6 +158,54 @@ func _stop_gaming():
 	_state = State.REST
 	_state_timer = randf_range(min_rest_time, max_rest_time)
 	_pet.idle()
+
+
+func _start_maus_event():
+	var side := 1 if randf() < 0.5 else -1
+	_pet.face(-side)
+	_spawn_maus(side)
+	_state = State.WATCH
+	_state_timer = watch_time
+	_pet.idle()
+
+
+func _spawn_maus(side: int):
+	_remove_maus()
+	var maus := Sprite2D.new()
+	maus.texture = MausTexture
+	maus.centered = false
+	var maus_x := 0.0 if side < 0 else float(_window.size.x - int(MAUS_SIZE.x))
+	var maus_y := float(_window.size.y - int(MAUS_SIZE.y))
+	maus.position = Vector2(maus_x, maus_y)
+	add_child(maus)
+	_maus = maus
+
+
+func _enter_scared():
+	_state = State.SCARED
+	_pet.set_scared_offset(true, scared_offset)
+	_pet.scared()
+
+
+func _remove_maus():
+	if _maus and is_instance_valid(_maus):
+		_maus.queue_free()
+	_maus = null
+
+
+func _clicked_on_maus(pos: Vector2) -> bool:
+	if _maus == null or not is_instance_valid(_maus):
+		return false
+	var rect := _maus.get_rect()
+	var origin := _maus.to_global(rect.position)
+	var end := _maus.to_global(rect.end)
+	return Rect2(origin, end - origin).has_point(pos)
+
+
+func _reset_to_ground():
+	_position.y = _ground_y()
+	_window.position = Vector2i(_position)
+	_pet.set_scared_offset(false, scared_offset)
 
 
 func _tick_walk(delta):

@@ -27,8 +27,23 @@ func gaming() -> void:
 	_animated_sprite.play("gaming")
 
 
+func scared() -> void:
+	_animated_sprite.play("scared")
+
+
+func face(direction: int) -> void:
+	_animated_sprite.flip_h = direction == -1
+
+
 func set_seated(seated: bool, offset: float) -> void:
 	if seated:
+		_animated_sprite.position = _base_sprite_pos + Vector2(0, -offset)
+	else:
+		_animated_sprite.position = _base_sprite_pos
+
+
+func set_scared_offset(enabled: bool, offset: float) -> void:
+	if enabled:
 		_animated_sprite.position = _base_sprite_pos + Vector2(0, -offset)
 	else:
 		_animated_sprite.position = _base_sprite_pos
