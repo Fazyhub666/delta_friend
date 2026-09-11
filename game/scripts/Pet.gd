@@ -35,6 +35,11 @@ func face(direction: int) -> void:
 	_animated_sprite.flip_h = direction == -1
 
 
+func jump(direction: int) -> void:
+	_animated_sprite.play("surprised")
+	_animated_sprite.flip_h = direction == -1
+
+
 func set_seated(seated: bool, offset: float) -> void:
 	if seated:
 		_animated_sprite.position = _base_sprite_pos + Vector2(0, -offset)

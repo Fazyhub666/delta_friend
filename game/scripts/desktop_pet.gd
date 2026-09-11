@@ -5,8 +5,17 @@ const MAUS_SIZE := Vector2(35, 12)
 const SIZE_SCALES := [1.0, 1.5, 2.0, 2.5, 3.0]
 const SIZE_LABELS := ["Pequeño", "+50% tamaño", "+100% tamaño", "+150% tamaño", "+200% tamaño"]
 const SIZE_OPT_IDS := [98, 100, 101, 102, 103]
+const MAX_FALL_SPEED := 1600.0
+const JUMP_MIN_DIST := 24.0
+const JUMP_MAX_DIST := 320.0
+const JUMP_MAX_UP := 260.0
+const JUMP_MAX_DROP := 600.0
+const JUMP_MIN_T := 0.35
+const JUMP_MAX_T := 1.1
+const JUMP_SPEED_REF := 400.0
+const JUMP_CLEAR := 36.0
 
-enum State { REST, WALK, SIT, GAMING, WATCH, SCARED, DRAG, FALLING }
+enum State { REST, WALK, SIT, GAMING, WATCH, SCARED, JUMP, DRAG, FALLING }
 
 @export var walk_speed := 60.0
 @export_range(0.2, 3.0, 0.1) var min_walk_time := 1.0
@@ -24,10 +33,12 @@ enum State { REST, WALK, SIT, GAMING, WATCH, SCARED, DRAG, FALLING }
 @export_range(0.0, 1.0, 0.05) var maus_chance := 0.3
 @export_range(0.2, 3.0, 0.1) var watch_time := 0.8
 @export_range(0.0, 40.0, 1.0) var scared_offset := 6.0
+@export_range(0.0, 1.0, 0.05) var platform_jump_chance := 0.35
 
 var _state := State.REST
 var _state_timer := 0.0
 var _walk_timer := 0.0
+var _jump_timer := 0.0
 var _direction := 1
 var _position := Vector2()
 var _walk_bounds := Rect2()
@@ -38,6 +49,8 @@ var _maus: Sprite2D
 var _context_menu: PopupMenu
 var _base_win_size := Vector2i.ZERO
 var _size_scale := 1.0
+var _feet_y := 0.0
+var _platform := Rect2()
 
 @onready var _window := get_window()
 @onready var _pet: Node2D = $Pet
@@ -49,6 +62,7 @@ func _ready():
 	_state_timer = randf_range(min_rest_time, max_rest_time)
 	_base_win_size = _window.size
 	_setup_context_menu()
+	_jump_timer = randf_range(2.0, 4.0)
 
 
 func _unhandled_input(event):
@@ -76,16 +90,19 @@ func _unhandled_input(event):
 			_state = State.DRAG
 			_pet.surprised()
 		else:
-			_velocity *= throw_scale
-			_state = State.FALLING
+			_enter_fall(_velocity * throw_scale)
 
 
 func _process(delta):
+	if _state != State.DRAG and _state != State.FALLING and _state != State.JUMP:
+		_validate_platform()
 	match _state:
 		State.REST:
 			_state_timer -= delta
 			if _state_timer <= 0.0:
-				if randf() < maus_chance:
+				if randf() < platform_jump_chance and _try_jump_to_platform(0):
+					return
+				if randf() < maus_chance and not _is_on_window():
 					_start_maus_event()
 				elif randf() < game_chance:
 					_start_sit()
@@ -110,6 +127,8 @@ func _process(delta):
 				_enter_scared()
 		State.SCARED:
 			pass
+		State.JUMP:
+			_tick_jump(delta)
 		State.DRAG:
 			_tick_drag(delta)
 		State.FALLING:
@@ -127,10 +146,10 @@ func _setup_bounds():
 
 func _center_over_taskbar():
 	var win_size := Vector2(_window.size)
-	var bounds := _walk_bounds
+	_feet_y = _walk_bounds.end.y
 	_position = Vector2(
-		bounds.position.x + (bounds.size.x - win_size.x) * 0.5,
-		bounds.position.y + bounds.size.y - win_size.y
+		_walk_bounds.position.x + (_walk_bounds.size.x - win_size.x) * 0.5,
+		_feet_y - win_size.y
 	)
 	_window.position = Vector2i(_position)
 
@@ -175,10 +194,8 @@ func _set_pet_scale(scale: float) -> void:
 	_pet.scale = Vector2.ONE * scale
 	_size_scale = scale
 	_position.x = anchor_x - _window.size.x * 0.5
-	if _state == State.SIT or _state == State.GAMING:
-		_position.y = _ground_y() + sit_offset * _size_scale
-	else:
-		_position.y = _ground_y()
+	var offset := sit_offset * _size_scale if (_state == State.SIT or _state == State.GAMING) else 0.0
+	_position.y = maxf(_feet_y - float(_window.size.y) + offset, _screen_bounds.position.y)
 	_window.position = Vector2i(round(_position))
 	_update_size_checkmarks()
 
@@ -204,8 +221,15 @@ func _end_walk():
 	_pet.idle()
 
 
-func _ground_y() -> float:
-	return _walk_bounds.end.y - float(_window.size.y)
+func _is_on_window() -> bool:
+	return _platform.size.x > 0.0 or _platform.size.y > 0.0
+
+
+func _walk_range() -> Vector2:
+	var win_w := float(_window.size.x)
+	if _is_on_window():
+		return Vector2(_platform.position.x, _platform.end.x - win_w)
+	return Vector2(_walk_bounds.position.x, _walk_bounds.end.x - win_w)
 
 
 func _start_sit():
@@ -215,13 +239,13 @@ func _start_sit():
 
 
 func _apply_seated():
-	_position.y = _ground_y() + sit_offset * _size_scale
+	_position.y = _feet_y - float(_window.size.y) + sit_offset * _size_scale
 	_window.position = Vector2i(_position)
 	_pet.set_seated(true, sit_sprite_raise)
 
 
 func _stop_gaming():
-	_position.y = _ground_y()
+	_position.y = _feet_y - float(_window.size.y)
 	_window.position = Vector2i(_position)
 	_pet.set_seated(false, sit_sprite_raise)
 	_state = State.REST
@@ -274,27 +298,46 @@ func _clicked_on_maus(pos: Vector2) -> bool:
 
 
 func _reset_to_ground():
-	_position.y = _ground_y()
+	_feet_y = _walk_bounds.end.y
+	_platform = Rect2()
+	_position.y = _feet_y - float(_window.size.y)
 	_window.position = Vector2i(_position)
 	_pet.set_scared_offset(false, scared_offset)
 
 
 func _tick_walk(delta):
-	_position.x += walk_speed * _direction * delta
-
+	_jump_timer -= delta
+	if _jump_timer <= 0.0:
+		_jump_timer = randf_range(2.0, 4.0)
+		if _try_jump_to_platform(_direction):
+			return
 	var win_w := float(_window.size.x)
-
-	if _position.x <= _walk_bounds.position.x:
-		_position.x = _walk_bounds.position.x
-		_end_walk()
-	elif _position.x + win_w >= _walk_bounds.end.x:
-		_position.x = _walk_bounds.end.x - win_w
-		_end_walk()
+	var new_x: float = _position.x + walk_speed * _direction * delta
+	if _is_on_window():
+		var rng := _walk_range()
+		if new_x <= rng.x or new_x + win_w >= rng.y:
+			if _try_jump_to_platform(_direction):
+				return
+			_position.x = clampf(new_x, rng.x, rng.y)
+			_enter_fall(Vector2.ZERO)
+			return
 	else:
-		_walk_timer -= delta
-		if _walk_timer <= 0.0:
+		if new_x <= _walk_bounds.position.x:
+			new_x = _walk_bounds.position.x
 			_end_walk()
-
+			_window.position = Vector2i(_position)
+			return
+		elif new_x + win_w >= _walk_bounds.end.x:
+			new_x = _walk_bounds.end.x - win_w
+			_end_walk()
+			_window.position = Vector2i(_position)
+			return
+	_position.x = new_x
+	_walk_timer -= delta
+	if _walk_timer <= 0.0:
+		_end_walk()
+		_window.position = Vector2i(_position)
+		return
 	_window.position = Vector2i(_position)
 
 
@@ -312,32 +355,162 @@ func _tick_drag(delta):
 	_window.position = Vector2i(_position)
 
 
-func _tick_fall(delta):
+func _tick_jump(delta):
 	var win_size := Vector2(_window.size)
-
+	var prev_feet := _position.y + win_size.y
 	_velocity.y += gravity * delta
+	_velocity.y = minf(_velocity.y, MAX_FALL_SPEED)
 	_position += _velocity * delta
-
 	if _position.x < _screen_bounds.position.x:
 		_position.x = _screen_bounds.position.x
 		_velocity.x = 0.0
 	elif _position.x + win_size.x > _screen_bounds.end.x:
 		_position.x = _screen_bounds.end.x - win_size.x
 		_velocity.x = 0.0
-
+	var landing := _find_landing(prev_feet, _position.y + win_size.y, _position.x + win_size.x * 0.5)
+	if not landing.is_empty():
+		_land(landing)
+		return
 	if _position.y < _screen_bounds.position.y:
 		_position.y = _screen_bounds.position.y
 		_velocity.y = 0.0
-
-	var ground_y := _walk_bounds.end.y - win_size.y
-
-	if _position.y >= ground_y:
-		_position.y = ground_y
-		_velocity = Vector2.ZERO
-		_window.position = Vector2i(_position)
-		_state = State.REST
-		_state_timer = randf_range(min_rest_time, max_rest_time)
-		_pet.idle()
-		return
-
 	_window.position = Vector2i(_position)
+
+
+func _tick_fall(delta):
+	var win_size := Vector2(_window.size)
+	var prev_feet := _position.y + win_size.y
+	_velocity.y += gravity * delta
+	_velocity.y = minf(_velocity.y, MAX_FALL_SPEED)
+	_position += _velocity * delta
+	if _position.x < _screen_bounds.position.x:
+		_position.x = _screen_bounds.position.x
+		_velocity.x = 0.0
+	elif _position.x + win_size.x > _screen_bounds.end.x:
+		_position.x = _screen_bounds.end.x - win_size.x
+		_velocity.x = 0.0
+	if _position.y < _screen_bounds.position.y:
+		_position.y = _screen_bounds.position.y
+		_velocity.y = 0.0
+	var landing := _find_landing(prev_feet, _position.y + win_size.y, _position.x + win_size.x * 0.5)
+	if not landing.is_empty():
+		_land(landing)
+		return
+	_window.position = Vector2i(_position)
+
+
+func _find_landing(prev_feet: float, new_feet: float, cx: float) -> Dictionary:
+	if _velocity.y <= 0.0:
+		return {}
+	var win_h := float(_window.size.y)
+	var screen_top := _screen_bounds.position.y
+	var best_top := INF
+	var best := {}
+	for p in Windows.platforms:
+		if p.position.y > new_feet or p.position.y < prev_feet:
+			continue
+		if p.end.x - p.position.x <= 1.0:
+			continue
+		if p.position.y - win_h < screen_top:
+			continue
+		if cx < p.position.x or cx > p.end.x:
+			continue
+		if p.position.y < best_top:
+			best_top = p.position.y
+			best = {"feet_y": p.position.y, "is_ground": false, "rect": p}
+	var ground_line := _walk_bounds.end.y
+	if new_feet >= ground_line:
+		if ground_line <= best_top:
+			best = {"feet_y": ground_line, "is_ground": true, "rect": Rect2()}
+	return best
+
+
+func _land(res: Dictionary) -> void:
+	var win_size := Vector2(_window.size)
+	if res.is_ground:
+		_feet_y = _walk_bounds.end.y
+		_platform = Rect2()
+	else:
+		_feet_y = res.rect.position.y
+		_platform = res.rect
+	_position.y = maxf(_feet_y - win_size.y, _screen_bounds.position.y)
+	_velocity = Vector2.ZERO
+	_window.position = Vector2i(round(_position))
+	_pet.idle()
+	_state = State.REST
+	_state_timer = randf_range(min_rest_time, max_rest_time)
+
+
+func _enter_fall(vel: Vector2) -> void:
+	_pet.set_seated(false, sit_sprite_raise)
+	_pet.set_scared_offset(false, scared_offset)
+	_remove_maus()
+	_platform = Rect2()
+	_velocity = vel
+	_state = State.FALLING
+	_pet.surprised()
+
+
+func _validate_platform() -> void:
+	if not _is_on_window():
+		return
+	var win := Vector2(_window.size)
+	var cx := _position.x + win.x * 0.5
+	for p in Windows.platforms:
+		if absf(p.position.y - _platform.position.y) <= 1.0 and cx >= p.position.x and cx <= p.end.x:
+			_platform = p
+			return
+	_enter_fall(Vector2.ZERO)
+
+
+func _try_jump_to_platform(dir_hint: int) -> bool:
+	if not Windows.active or Windows.platforms.is_empty():
+		return false
+	var win := Vector2(_window.size)
+	var cx := _position.x + win.x * 0.5
+	var feet_y := _feet_y
+	var best: Rect2
+	var best_cost := INF
+	for p in Windows.platforms:
+		if p.end.x - p.position.x < win.x + 12.0:
+			continue
+		if p.size.y <= 1.0:
+			continue
+		if p.position.y - win.y < _screen_bounds.position.y + 1.0:
+			continue
+		var dy := p.position.y - feet_y
+		if dy < -JUMP_MAX_UP or dy > JUMP_MAX_DROP:
+			continue
+		var min_cx := p.position.x + win.x * 0.5
+		var max_cx := p.end.x - win.x * 0.5
+		if min_cx >= max_cx:
+			continue
+		var target_cx := clampf(cx + dir_hint * 140.0, min_cx, max_cx)
+		if dir_hint == 0:
+			target_cx = clampf(cx, min_cx, max_cx)
+		var dx := target_cx - cx
+		if absf(dx) < JUMP_MIN_DIST or absf(dx) > JUMP_MAX_DIST:
+			continue
+		if _is_on_window() and absf(p.position.x - _platform.position.x) < 1.0 and absf(p.position.y - _platform.position.y) < 1.0:
+			continue
+		var cost := absf(dx) + absf(dy) * 1.2
+		if cost < best_cost:
+			best_cost = cost
+			best = p
+	if best.size.x == 0.0 and best.size.y == 0.0:
+		return false
+	_start_jump(best, cx, feet_y)
+	return true
+
+
+func _start_jump(target: Rect2, from_cx: float, from_feet: float) -> void:
+	var win := Vector2(_window.size)
+	var dy := target.position.y - from_feet
+	var target_cx := clampf(from_cx, target.position.x + win.x * 0.5, target.end.x - win.x * 0.5)
+	var dx := target_cx - from_cx
+	var dir := 1 if dx >= 0.0 else -1
+	var t := clampf(absf(dx) / (JUMP_SPEED_REF * _size_scale), JUMP_MIN_T, JUMP_MAX_T)
+	_platform = Rect2()
+	_velocity = Vector2(dx / t, (dy - JUMP_CLEAR) / t - 0.5 * gravity * t)
+	_pet.jump(dir)
+	_state = State.JUMP
