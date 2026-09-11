@@ -2,6 +2,9 @@ extends Node2D
 
 const MausTexture := preload("res://sprites/maus/idle.png")
 const MAUS_SIZE := Vector2(35, 12)
+const SIZE_SCALES := [1.0, 1.5, 2.0, 2.5, 3.0]
+const SIZE_LABELS := ["Pequeño", "+50% tamaño", "+100% tamaño", "+150% tamaño", "+200% tamaño"]
+const SIZE_OPT_IDS := [98, 100, 101, 102, 103]
 
 enum State { REST, WALK, SIT, GAMING, WATCH, SCARED, DRAG, FALLING }
 
@@ -32,6 +35,9 @@ var _screen_bounds := Rect2()
 var _grab_offset := Vector2()
 var _velocity := Vector2()
 var _maus: Sprite2D
+var _context_menu: PopupMenu
+var _base_win_size := Vector2i.ZERO
+var _size_scale := 1.0
 
 @onready var _window := get_window()
 @onready var _pet: Node2D = $Pet
@@ -41,10 +47,17 @@ func _ready():
 	_setup_bounds()
 	_center_over_taskbar()
 	_state_timer = randf_range(min_rest_time, max_rest_time)
+	_base_win_size = _window.size
+	_setup_context_menu()
 
 
 func _unhandled_input(event):
-	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
+	if event is InputEventMouseButton:
+		if event.button_index == MOUSE_BUTTON_RIGHT and event.pressed:
+			_open_context_menu()
+			return
+		if event.button_index != MOUSE_BUTTON_LEFT:
+			return
 		if event.pressed:
 			if _state == State.SIT or _state == State.GAMING:
 				_pet.set_seated(false, sit_sprite_raise)
@@ -122,6 +135,62 @@ func _center_over_taskbar():
 	_window.position = Vector2i(_position)
 
 
+func _setup_context_menu():
+	_context_menu = PopupMenu.new()
+	for action in ["Comer", "Jugar", "Limpiar", "Dormir", "Salir"]:
+		_context_menu.add_item(action)
+	_context_menu.add_separator()
+	_context_menu.add_item("Tamaño")
+	_context_menu.set_item_disabled(_context_menu.get_item_count() - 1, true)
+	for i in SIZE_OPT_IDS.size():
+		_context_menu.add_check_item(SIZE_LABELS[i], SIZE_OPT_IDS[i])
+		_context_menu.set_item_as_radio_checkable(_context_menu.get_item_count() - 1, true)
+	_context_menu.id_pressed.connect(_on_menu_item)
+	_update_size_checkmarks()
+	get_tree().root.add_child.call_deferred(_context_menu)
+
+
+func _open_context_menu():
+	if _state == State.DRAG or _state == State.FALLING:
+		return
+	if _context_menu.visible:
+		return
+	_context_menu.position = Vector2i(DisplayServer.mouse_get_position())
+	_context_menu.popup()
+
+
+func _on_menu_item(id: int) -> void:
+	var idx := SIZE_OPT_IDS.find(id)
+	if idx >= 0:
+		_set_pet_scale(SIZE_SCALES[idx])
+		return
+	print("[MENU] placeholder presionado: ", _context_menu.get_item_text(id))
+
+
+func _set_pet_scale(scale: float) -> void:
+	if scale <= 0.0 or is_equal_approx(scale, _size_scale):
+		return
+	var anchor_x := _position.x + _base_win_size.x * 0.5
+	_window.size = Vector2i(round(Vector2(_base_win_size) * scale))
+	_pet.scale = Vector2.ONE * scale
+	_size_scale = scale
+	_position.x = anchor_x - _window.size.x * 0.5
+	if _state == State.SIT or _state == State.GAMING:
+		_position.y = _ground_y() + sit_offset * _size_scale
+	else:
+		_position.y = _ground_y()
+	_window.position = Vector2i(round(_position))
+	_update_size_checkmarks()
+
+
+func _update_size_checkmarks() -> void:
+	for i in SIZE_OPT_IDS.size():
+		_context_menu.set_item_checked(
+			_context_menu.get_item_index(SIZE_OPT_IDS[i]),
+			is_equal_approx(_size_scale, SIZE_SCALES[i])
+		)
+
+
 func _start_walk():
 	_direction = 1 if randf() < 0.5 else -1
 	_state = State.WALK
@@ -146,7 +215,7 @@ func _start_sit():
 
 
 func _apply_seated():
-	_position.y = _ground_y() + sit_offset
+	_position.y = _ground_y() + sit_offset * _size_scale
 	_window.position = Vector2i(_position)
 	_pet.set_seated(true, sit_sprite_raise)
 
@@ -174,8 +243,10 @@ func _spawn_maus(side: int):
 	var maus := Sprite2D.new()
 	maus.texture = MausTexture
 	maus.centered = false
-	var maus_x := 0.0 if side < 0 else float(_window.size.x - int(MAUS_SIZE.x))
-	var maus_y := float(_window.size.y - int(MAUS_SIZE.y))
+	maus.scale = Vector2.ONE * _size_scale
+	var maus_size := MAUS_SIZE * _size_scale
+	var maus_x := 0.0 if side < 0 else float(_window.size.x - int(maus_size.x))
+	var maus_y := float(_window.size.y - int(maus_size.y))
 	maus.position = Vector2(maus_x, maus_y)
 	add_child(maus)
 	_maus = maus
