@@ -19,6 +19,20 @@ func _ready() -> void:
 	pet._feet_y = 1008.0
 	pet._platform = Rect2()
 	pet._position = Vector2(236, 944)
+	var s: AnimatedSprite2D = pet._pet.get_node("AnimatedSprite2D")
+	var tsize: Vector2 = s.sprite_frames.get_frame_texture(s.animation, s.frame).get_size()
+	var go := s.to_global(-tsize * 0.5)
+	var g_rect := Rect2(go, s.to_global(tsize * 0.5) - go)
+	var inside_hits := 0
+	for off in [Vector2.ZERO, Vector2(-6, 0), Vector2(6, 0), Vector2(0, -6), Vector2(0, 6)]:
+		if pet._clicked_on_pet(g_rect.get_center() + off):
+			inside_hits += 1
+	var left_hit: bool = pet._clicked_on_pet(g_rect.position + Vector2(-24.0, g_rect.size.y * 0.5))
+	var right_hit: bool = pet._clicked_on_pet(Vector2(g_rect.end.x + 24.0, go.y + g_rect.size.y * 0.5))
+	print("[TEST] sprite hitbox interior_hits=", inside_hits, " left=", left_hit, " right=", right_hit)
+	if inside_hits == 0 or left_hit or right_hit:
+		print("[TEST] FAIL sprite hitbox")
+		get_tree().quit(1)
 
 
 func _process(_delta: float) -> void:

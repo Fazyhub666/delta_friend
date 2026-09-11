@@ -46,6 +46,7 @@ var _screen_bounds := Rect2()
 var _grab_offset := Vector2()
 var _velocity := Vector2()
 var _maus: Sprite2D
+var _sprite_hit_cache := {}
 var _context_menu: PopupMenu
 var _base_win_size := Vector2i.ZERO
 var _size_scale := 1.0
@@ -85,6 +86,8 @@ func _unhandled_input(event):
 					return
 				_remove_maus()
 				_reset_to_ground()
+			if not _clicked_on_pet(event.position):
+				return
 			_grab_offset = Vector2(_window.position) - Vector2(DisplayServer.mouse_get_position())
 			_velocity = Vector2.ZERO
 			_state = State.DRAG
@@ -295,6 +298,45 @@ func _clicked_on_maus(pos: Vector2) -> bool:
 	var origin := _maus.to_global(rect.position)
 	var end := _maus.to_global(rect.end)
 	return Rect2(origin, end - origin).has_point(pos)
+
+
+func _clicked_on_pet(pos: Vector2) -> bool:
+	var sprite: AnimatedSprite2D = _pet.get_node("AnimatedSprite2D")
+	if sprite == null or sprite.sprite_frames == null:
+		return true
+	var tex: Texture2D = sprite.sprite_frames.get_frame_texture(sprite.animation, sprite.frame)
+	if tex == null:
+		return true
+	var tex_size := tex.get_size()
+	if tex_size.x <= 0.0 or tex_size.y <= 0.0:
+		return true
+	var half := tex_size * 0.5
+	var origin: Vector2
+	var end: Vector2
+	if sprite.centered:
+		origin = sprite.to_global(-half)
+		end = sprite.to_global(half)
+	else:
+		origin = sprite.to_global(Vector2.ZERO)
+		end = sprite.to_global(tex_size)
+	if not Rect2(origin, end - origin).has_point(pos):
+		return false
+	var img: Image
+	if _sprite_hit_cache.has(tex):
+		img = _sprite_hit_cache[tex]
+	else:
+		img = tex.get_image()
+		if img == null:
+			return true
+		_sprite_hit_cache[tex] = img
+	var local := sprite.to_local(pos)
+	if sprite.centered:
+		local += half
+	var u := clampi(int(local.x / tex_size.x * img.get_width()), 0, img.get_width() - 1)
+	if sprite.flip_h:
+		u = img.get_width() - 1 - u
+	var v := clampi(int(local.y / tex_size.y * img.get_height()), 0, img.get_height() - 1)
+	return img.get_pixel(u, v).a > 0.05
 
 
 func _reset_to_ground():
