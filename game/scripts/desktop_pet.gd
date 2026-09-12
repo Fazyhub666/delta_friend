@@ -7,12 +7,12 @@ const SIZE_LABELS := ["Pequeño", "+50% tamaño", "+100% tamaño", "+150% tamañ
 const SIZE_OPT_IDS := [98, 100, 101, 102, 103]
 const MAX_FALL_SPEED := 1600.0
 const JUMP_MIN_DIST := 24.0
-const JUMP_MAX_DIST := 320.0
 const JUMP_MAX_UP := 260.0
 const JUMP_MAX_DROP := 600.0
 const JUMP_MIN_T := 0.35
 const JUMP_MAX_T := 1.1
 const JUMP_SPEED_REF := 400.0
+const JUMP_MAX_DIST := JUMP_SPEED_REF * JUMP_MAX_T
 const JUMP_CLEAR := 36.0
 
 enum State { REST, WALK, SIT, GAMING, WATCH, SCARED, JUMP, DRAG, FALLING }
@@ -52,6 +52,7 @@ var _base_win_size := Vector2i.ZERO
 var _size_scale := 1.0
 var _feet_y := 0.0
 var _platform := Rect2()
+var _launch_platform := Rect2()
 
 @onready var _window := get_window()
 @onready var _pet: Node2D = $Pet
@@ -360,8 +361,9 @@ func _tick_walk(delta):
 		if new_x <= rng.x or new_x + win_w >= rng.y:
 			if _try_jump_to_platform(_direction):
 				return
+			_direction *= -1
 			_position.x = clampf(new_x, rng.x, rng.y)
-			_enter_fall(Vector2.ZERO)
+			_pet.walk(_direction)
 			return
 	else:
 		if new_x <= _walk_bounds.position.x:
@@ -451,6 +453,9 @@ func _find_landing(prev_feet: float, new_feet: float, cx: float) -> Dictionary:
 	for p in Windows.platforms:
 		if p.position.y > new_feet or p.position.y < prev_feet:
 			continue
+		if _launch_platform.size.x > 0.0 and absf(p.position.x - _launch_platform.position.x) < 1.0 \
+				and absf(p.position.y - _launch_platform.position.y) < 1.0:
+			continue
 		if p.end.x - p.position.x <= 1.0:
 			continue
 		if p.position.y - win_h < screen_top:
@@ -477,6 +482,7 @@ func _land(res: Dictionary) -> void:
 		_platform = res.rect
 	_position.y = maxf(_feet_y - win_size.y, _screen_bounds.position.y)
 	_velocity = Vector2.ZERO
+	_launch_platform = Rect2()
 	_window.position = Vector2i(round(_position))
 	_pet.idle()
 	_state = State.REST
@@ -488,6 +494,7 @@ func _enter_fall(vel: Vector2) -> void:
 	_pet.set_scared_offset(false, scared_offset)
 	_remove_maus()
 	_platform = Rect2()
+	_launch_platform = Rect2()
 	_velocity = vel
 	_state = State.FALLING
 	_pet.surprised()
@@ -531,7 +538,9 @@ func _try_jump_to_platform(dir_hint: int) -> bool:
 		if dir_hint == 0:
 			target_cx = clampf(cx, min_cx, max_cx)
 		var dx := target_cx - cx
-		if absf(dx) < JUMP_MIN_DIST or absf(dx) > JUMP_MAX_DIST:
+		if absf(dx) > JUMP_MAX_DIST:
+			continue
+		if absf(dx) < JUMP_MIN_DIST and absf(dy) < JUMP_MIN_DIST:
 			continue
 		if _is_on_window() and absf(p.position.x - _platform.position.x) < 1.0 and absf(p.position.y - _platform.position.y) < 1.0:
 			continue
@@ -539,10 +548,27 @@ func _try_jump_to_platform(dir_hint: int) -> bool:
 		if cost < best_cost:
 			best_cost = cost
 			best = p
+	if best.size.x == 0.0 and best.size.y == 0.0 and _is_on_window():
+		best = _ground_jump_target(cx, feet_y, win)
 	if best.size.x == 0.0 and best.size.y == 0.0:
 		return false
 	_start_jump(best, cx, feet_y)
 	return true
+
+
+func _ground_jump_target(cx: float, feet_y: float, win: Vector2) -> Rect2:
+	var ground_y := _walk_bounds.end.y
+	var dy := ground_y - feet_y
+	if dy < -JUMP_MAX_UP or dy > JUMP_MAX_DROP:
+		return Rect2()
+	var min_cx := _walk_bounds.position.x + win.x * 0.5
+	var max_cx := _walk_bounds.end.x - win.x * 0.5
+	if min_cx >= max_cx:
+		return Rect2()
+	var target_cx := clampf(cx, min_cx, max_cx)
+	if absf(target_cx - cx) > JUMP_MAX_DIST:
+		return Rect2()
+	return Rect2(_walk_bounds.position.x, ground_y, _walk_bounds.size.x, 2.0)
 
 
 func _start_jump(target: Rect2, from_cx: float, from_feet: float) -> void:
@@ -552,7 +578,8 @@ func _start_jump(target: Rect2, from_cx: float, from_feet: float) -> void:
 	var dx := target_cx - from_cx
 	var dir := 1 if dx >= 0.0 else -1
 	var t := clampf(absf(dx) / (JUMP_SPEED_REF * _size_scale), JUMP_MIN_T, JUMP_MAX_T)
+	_launch_platform = _platform
 	_platform = Rect2()
 	_velocity = Vector2(dx / t, (dy - JUMP_CLEAR) / t - 0.5 * gravity * t)
-	_pet.jump(dir)
+	_pet.jump(dir, t)
 	_state = State.JUMP

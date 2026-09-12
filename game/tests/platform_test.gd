@@ -53,7 +53,16 @@ func _process(_delta: float) -> void:
 	match _phase:
 		0:
 			if pet._state == 6:
-				print("[TEST] in air, vel=", pet._velocity)
+				var sp: AnimatedSprite2D = pet._pet.get_node("AnimatedSprite2D")
+				var base := 0.0
+				for i in sp.sprite_frames.get_frame_count("jump"):
+					base += sp.sprite_frames.get_frame_duration("jump", i)
+				base /= sp.sprite_frames.get_animation_speed("jump")
+				var expected_ss := base / 0.41
+				print("[TEST] in air, vel=", pet._velocity, " anim=", sp.animation, " ss=", sp.speed_scale, " expected_ss=", expected_ss)
+				if sp.animation != "jump" or absf(sp.speed_scale - expected_ss) > 0.05:
+					print("[TEST] FAIL jump animation")
+					get_tree().quit(1)
 				_phase = 1
 		1:
 			if pet._state == 0 and absf(pet._feet_y - FIXTURE.position.y) < 0.5 and pet._platform == FIXTURE:

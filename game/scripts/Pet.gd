@@ -12,32 +12,45 @@ func _ready():
 
 func walk(direction: int) -> void:
 	_animated_sprite.play("walk")
+	_animated_sprite.speed_scale = 1.0
 	_animated_sprite.flip_h = direction == -1
 
 
 func idle() -> void:
 	_animated_sprite.play("idle")
+	_animated_sprite.speed_scale = 1.0
 
 
 func surprised() -> void:
 	_animated_sprite.play("surprised")
+	_animated_sprite.speed_scale = 1.0
 
 
 func gaming() -> void:
 	_animated_sprite.play("gaming")
+	_animated_sprite.speed_scale = 1.0
 
 
 func scared() -> void:
 	_animated_sprite.play("scared")
+	_animated_sprite.speed_scale = 1.0
 
 
 func face(direction: int) -> void:
 	_animated_sprite.flip_h = direction == -1
 
 
-func jump(direction: int) -> void:
-	_animated_sprite.play("surprised")
+func jump(direction: int, duration: float = 0.0) -> void:
+	_animated_sprite.play("jump")
 	_animated_sprite.flip_h = direction == -1
+	if duration > 0.0:
+		var base := 0.0
+		for i in _animated_sprite.sprite_frames.get_frame_count("jump"):
+			base += _animated_sprite.sprite_frames.get_frame_duration("jump", i)
+		base /= _animated_sprite.sprite_frames.get_animation_speed("jump")
+		_animated_sprite.speed_scale = base / duration
+	else:
+		_animated_sprite.speed_scale = 1.0
 
 
 func set_seated(seated: bool, offset: float) -> void:
