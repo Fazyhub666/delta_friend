@@ -14,6 +14,7 @@ func _ready() -> void:
 	Engine.max_fps = 60
 	pet = SCENE.instantiate()
 	add_child(pet)
+	pet._set_pet_scale(1.0)
 	pet._walk_bounds = Rect2(0, 840, 1920, 168)
 	pet._screen_bounds = Rect2(0, 0, 1920, 1080)
 	pet._feet_y = 1008.0

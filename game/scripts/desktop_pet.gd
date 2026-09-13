@@ -3,7 +3,7 @@ extends Node2D
 const MausTexture := preload("res://sprites/maus/idle.png")
 const MAUS_SIZE := Vector2(35, 12)
 const SIZE_SCALES := [1.0, 1.5, 2.0, 2.5, 3.0]
-const SIZE_LABELS := ["Pequeño", "+50% tamaño", "+100% tamaño", "+150% tamaño", "+200% tamaño"]
+const SIZE_LABELS := ["x0.5", "x1.0", "x1.5", "x2.0", "x2.5"]
 const SIZE_OPT_IDS := [98, 100, 101, 102, 103]
 const MAX_FALL_SPEED := 1600.0
 const JUMP_MIN_DIST := 24.0
@@ -49,7 +49,7 @@ var _maus: Sprite2D
 var _sprite_hit_cache := {}
 var _context_menu: PopupMenu
 var _base_win_size := Vector2i.ZERO
-var _size_scale := 1.0
+var _size_scale := 1.5
 var _feet_y := 0.0
 var _platform := Rect2()
 var _launch_platform := Rect2()
@@ -60,9 +60,10 @@ var _launch_platform := Rect2()
 
 func _ready():
 	_setup_bounds()
+	_base_win_size = _window.size
+	_apply_default_scale()
 	_center_over_taskbar()
 	_state_timer = randf_range(min_rest_time, max_rest_time)
-	_base_win_size = _window.size
 	_setup_context_menu()
 	_jump_timer = randf_range(2.0, 4.0)
 
@@ -188,6 +189,13 @@ func _on_menu_item(id: int) -> void:
 		_set_pet_scale(SIZE_SCALES[idx])
 		return
 	print("[MENU] placeholder presionado: ", _context_menu.get_item_text(id))
+
+
+func _apply_default_scale() -> void:
+	if is_equal_approx(_size_scale, 1.0):
+		return
+	_pet.scale = Vector2.ONE * _size_scale
+	_window.size = Vector2i(round(Vector2(_base_win_size) * _size_scale))
 
 
 func _set_pet_scale(scale: float) -> void:

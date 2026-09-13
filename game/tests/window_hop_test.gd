@@ -19,6 +19,7 @@ func _ready() -> void:
 	Engine.max_fps = 60
 	pet = SCENE.instantiate()
 	add_child(pet)
+	pet._set_pet_scale(1.0)
 	pet.maus_chance = 0.0
 	pet.game_chance = 0.0
 	pet.min_rest_time = 0.8

@@ -20,6 +20,7 @@ func _ready() -> void:
 	Windows._out_path = OS.get_environment("TEMP").path_join("delta_friend_never.json")
 	pet = SCENE.instantiate()
 	add_child(pet)
+	pet._set_pet_scale(1.0)
 	pet.maus_chance = 0.0
 	pet.game_chance = 0.0
 	pet._walk_bounds = Rect2(0, 840, 1920, 168)
