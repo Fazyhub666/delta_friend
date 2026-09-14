@@ -47,6 +47,7 @@ var _grab_offset := Vector2()
 var _velocity := Vector2()
 var _maus: Sprite2D
 var _sprite_hit_cache := {}
+var _sprite_bounds_cache := {}
 var _context_menu: PopupMenu
 var _base_win_size := Vector2i.ZERO
 var _size_scale := 1.5
@@ -238,10 +239,10 @@ func _is_on_window() -> bool:
 
 
 func _walk_range() -> Vector2:
-	var win_w := float(_window.size.x)
+	var vb := _visual_bounds_in_window()
 	if _is_on_window():
-		return Vector2(_platform.position.x, _platform.end.x - win_w)
-	return Vector2(_walk_bounds.position.x, _walk_bounds.end.x - win_w)
+		return Vector2(_platform.position.x - vb.position.x, _platform.end.x - vb.end.x)
+	return Vector2(_walk_bounds.position.x - vb.position.x, _walk_bounds.end.x - vb.end.x)
 
 
 func _start_sit():
@@ -356,35 +357,98 @@ func _reset_to_ground():
 	_pet.set_scared_offset(false, scared_offset)
 
 
+func _sprite_alpha_bounds(tex: Texture2D) -> Rect2i:
+	if _sprite_bounds_cache.has(tex):
+		return _sprite_bounds_cache[tex]
+	var img: Image
+	if _sprite_hit_cache.has(tex):
+		img = _sprite_hit_cache[tex]
+	else:
+		img = tex.get_image()
+		if img == null:
+			return Rect2i()
+		_sprite_hit_cache[tex] = img
+	var iw := img.get_width()
+	var ih := img.get_height()
+	var min_u := iw
+	var min_v := ih
+	var max_u := -1
+	var max_v := -1
+	for i in iw:
+		for j in ih:
+			if img.get_pixel(i, j).a > 0.05:
+				min_u = mini(min_u, i)
+				min_v = mini(min_v, j)
+				max_u = maxi(max_u, i)
+				max_v = maxi(max_v, j)
+	var ab := Rect2i()
+	if max_u >= 0 and max_v >= 0:
+		ab = Rect2i(min_u, min_v, max_u - min_u + 1, max_v - min_v + 1)
+	_sprite_bounds_cache[tex] = ab
+	return ab
+
+
+func _visual_bounds_in_window() -> Rect2:
+	var sprite: AnimatedSprite2D = _pet.get_node("AnimatedSprite2D")
+	if sprite == null or sprite.sprite_frames == null:
+		return Rect2(Vector2.ZERO, Vector2(_window.size))
+	var tex: Texture2D = sprite.sprite_frames.get_frame_texture(sprite.animation, sprite.frame)
+	if tex == null:
+		return Rect2(Vector2.ZERO, Vector2(_window.size))
+	var tex_size := tex.get_size()
+	if tex_size.x <= 0.0 or tex_size.y <= 0.0:
+		return Rect2(Vector2.ZERO, Vector2(_window.size))
+	var ab := _sprite_alpha_bounds(tex)
+	if ab.size.x <= 0 or ab.size.y <= 0:
+		return Rect2(Vector2.ZERO, Vector2(_window.size))
+	var sc := Vector2(_pet.scale)
+	var size := Vector2(ab.size) * sc
+	if sprite.centered:
+		var ab_center := Vector2(ab.position) + Vector2(ab.size) * 0.5
+		var offset := (ab_center - tex_size * 0.5) * sc
+		if sprite.flip_h:
+			offset.x = -offset.x
+		return Rect2(sprite.position * sc + offset - size * 0.5, size)
+	var origin: Vector2 = sprite.position * sc + Vector2(ab.position) * sc
+	if sprite.flip_h:
+		origin.x = sprite.position.x * sc.x + (tex_size.x - ab.position.x - ab.size.x) * sc.x
+	return Rect2(origin, size)
+
+
+func _clamp_window_to_screen(pos: Vector2) -> Vector2:
+	var win := Vector2(_window.size)
+	var vb := _visual_bounds_in_window()
+	if vb.size.x <= 0.0 or vb.size.y <= 0.0 \
+			or vb.position.x < -0.001 or vb.position.y < -0.001 \
+			or vb.end.x > win.x + 0.001 or vb.end.y > win.y + 0.001:
+		return pos.clamp(_screen_bounds.position, _screen_bounds.end - win)
+	return Vector2(
+		clampf(pos.x, _screen_bounds.position.x - vb.position.x, _screen_bounds.end.x - vb.end.x),
+		clampf(pos.y, _screen_bounds.position.y - vb.position.y, _screen_bounds.end.y - vb.end.y)
+	)
+
+
 func _tick_walk(delta):
 	_jump_timer -= delta
 	if _jump_timer <= 0.0:
 		_jump_timer = randf_range(2.0, 4.0)
 		if _try_jump_to_platform(_direction):
 			return
-	var win_w := float(_window.size.x)
 	var new_x: float = _position.x + walk_speed * _direction * delta
-	if _is_on_window():
-		var rng := _walk_range()
-		if new_x <= rng.x or new_x + win_w >= rng.y:
-			if _try_jump_to_platform(_direction):
-				return
-			_direction *= -1
-			_position.x = clampf(new_x, rng.x, rng.y)
-			_pet.walk(_direction)
-			return
-	else:
-		if new_x <= _walk_bounds.position.x:
-			new_x = _walk_bounds.position.x
+	var rng := _walk_range()
+	var clamped_x := clampf(new_x, minf(rng.x, rng.y), maxf(rng.x, rng.y))
+	var hit_edge := not is_equal_approx(clamped_x, new_x)
+	_position.x = clamped_x
+	if hit_edge:
+		if not _is_on_window():
 			_end_walk()
 			_window.position = Vector2i(_position)
 			return
-		elif new_x + win_w >= _walk_bounds.end.x:
-			new_x = _walk_bounds.end.x - win_w
-			_end_walk()
-			_window.position = Vector2i(_position)
+		if _try_jump_to_platform(_direction):
 			return
-	_position.x = new_x
+		_direction *= -1
+		_pet.walk(_direction)
+		return
 	_walk_timer -= delta
 	if _walk_timer <= 0.0:
 		_end_walk()
@@ -394,11 +458,8 @@ func _tick_walk(delta):
 
 
 func _tick_drag(delta):
-	var win_size := Vector2(_window.size)
 	var target := Vector2(DisplayServer.mouse_get_position()) + _grab_offset
-
-	target.x = clampf(target.x, _screen_bounds.position.x, _screen_bounds.end.x - win_size.x)
-	target.y = clampf(target.y, _screen_bounds.position.y, _screen_bounds.end.y - win_size.y)
+	target = _clamp_window_to_screen(target)
 
 	var instant_velocity: Vector2 = (target - _position) / delta
 	_velocity = _velocity.lerp(instant_velocity, 0.4)
@@ -413,19 +474,16 @@ func _tick_jump(delta):
 	_velocity.y += gravity * delta
 	_velocity.y = minf(_velocity.y, MAX_FALL_SPEED)
 	_position += _velocity * delta
-	if _position.x < _screen_bounds.position.x:
-		_position.x = _screen_bounds.position.x
+	var prev_pos := _position
+	_position = _clamp_window_to_screen(_position)
+	if absf(_position.x - prev_pos.x) > 0.001:
 		_velocity.x = 0.0
-	elif _position.x + win_size.x > _screen_bounds.end.x:
-		_position.x = _screen_bounds.end.x - win_size.x
-		_velocity.x = 0.0
+	if absf(_position.y - prev_pos.y) > 0.001:
+		_velocity.y = 0.0
 	var landing := _find_landing(prev_feet, _position.y + win_size.y, _position.x + win_size.x * 0.5)
 	if not landing.is_empty():
 		_land(landing)
 		return
-	if _position.y < _screen_bounds.position.y:
-		_position.y = _screen_bounds.position.y
-		_velocity.y = 0.0
 	_window.position = Vector2i(_position)
 
 
@@ -435,14 +493,11 @@ func _tick_fall(delta):
 	_velocity.y += gravity * delta
 	_velocity.y = minf(_velocity.y, MAX_FALL_SPEED)
 	_position += _velocity * delta
-	if _position.x < _screen_bounds.position.x:
-		_position.x = _screen_bounds.position.x
+	var prev_pos := _position
+	_position = _clamp_window_to_screen(_position)
+	if absf(_position.x - prev_pos.x) > 0.001:
 		_velocity.x = 0.0
-	elif _position.x + win_size.x > _screen_bounds.end.x:
-		_position.x = _screen_bounds.end.x - win_size.x
-		_velocity.x = 0.0
-	if _position.y < _screen_bounds.position.y:
-		_position.y = _screen_bounds.position.y
+	if absf(_position.y - prev_pos.y) > 0.001:
 		_velocity.y = 0.0
 	var landing := _find_landing(prev_feet, _position.y + win_size.y, _position.x + win_size.x * 0.5)
 	if not landing.is_empty():
