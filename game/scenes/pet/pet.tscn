@@ -7,16 +7,12 @@
 [ext_resource type="Texture2D" uid="uid://cuwb2dwtybd52" path="res://sprites/elly/frames/walk_1.png" id="3_ur5mw"]
 [ext_resource type="Texture2D" uid="uid://c3bp4l73qoo43" path="res://sprites/elly/frames/walk_2.png" id="4_dw2dr"]
 [ext_resource type="Texture2D" uid="uid://rj6avysd86lk" path="res://sprites/elly/frames/scared/scared_1.png" id="5_rfnce"]
-[ext_resource type="Texture2D" uid="uid://bvmp52isr4hn2" path="res://sprites/elly/frames/jump/jump_1.png" id="5_s1fmu"]
 [ext_resource type="Texture2D" uid="uid://dqwttqhiu3tem" path="res://sprites/elly/frames/walk_3.png" id="5_vey2l"]
-[ext_resource type="Texture2D" uid="uid://b4a2jxl48sgn8" path="res://sprites/elly/frames/jump/jump_2.png" id="6_etcm2"]
 [ext_resource type="Texture2D" uid="uid://cmugsawnvame8" path="res://sprites/elly/frames/scared/scared_2.png" id="6_nhmr5"]
 [ext_resource type="Texture2D" uid="uid://bjd81jc041j56" path="res://sprites/elly/frames/walk_4.png" id="6_srtiq"]
-[ext_resource type="Texture2D" uid="uid://dn4jdxosyjjp2" path="res://sprites/elly/frames/jump/jump_3.png" id="7_mpyet"]
 [ext_resource type="Texture2D" uid="uid://d4ixemghxcb6" path="res://sprites/elly/frames/surprised.png" id="7_vey2l"]
 [ext_resource type="Texture2D" uid="uid://c30yry11s01oc" path="res://sprites/elly/frames/scared/scared_3.png" id="7_y55iv"]
 [ext_resource type="Texture2D" uid="uid://c3qwv1f7ecjdk" path="res://sprites/elly/frames/scared/scared_4.png" id="8_0xa6o"]
-[ext_resource type="Texture2D" uid="uid://bcrqsmn88eun3" path="res://sprites/elly/frames/jump/jump_4.png" id="8_2goke"]
 [ext_resource type="Texture2D" uid="uid://bk5j4occ841od" path="res://sprites/elly/frames/scared/scared_5.png" id="9_s1fmu"]
 [ext_resource type="Texture2D" uid="uid://d1ruimtt0ymd3" path="res://sprites/elly/frames/scared/scared_6.png" id="10_etcm2"]
 [ext_resource type="Texture2D" uid="uid://djdnmwxr5vnpd" path="res://sprites/elly/frames/scared/scared_7.png" id="11_mpyet"]
@@ -25,10 +21,18 @@
 [ext_resource type="Texture2D" uid="uid://ckjcfyk7tgbrf" path="res://sprites/elly/frames/scared/scared_10.png" id="14_qcolf"]
 [ext_resource type="Texture2D" uid="uid://baq1bbs5dcqd1" path="res://sprites/elly/frames/scared/scared_11.png" id="15_0nu4h"]
 [ext_resource type="Texture2D" uid="uid://5ar7ivnyvxuv" path="res://sprites/elly/frames/scared/scared_12.png" id="16_cgi2e"]
-[ext_resource type="Texture2D" path="res://sprites/elly/frames/jump/jump_1.png" id="17_jmp1"]
-[ext_resource type="Texture2D" path="res://sprites/elly/frames/jump/jump_2.png" id="18_jmp2"]
-[ext_resource type="Texture2D" path="res://sprites/elly/frames/jump/jump_3.png" id="19_jmp3"]
-[ext_resource type="Texture2D" path="res://sprites/elly/frames/jump/jump_4.png" id="20_jmp4"]
+[ext_resource type="Texture2D" uid="uid://bvmp52isr4hn2" path="res://sprites/elly/frames/jump/jump_1.png" id="17_jmp1"]
+[ext_resource type="Texture2D" uid="uid://b4a2jxl48sgn8" path="res://sprites/elly/frames/jump/jump_2.png" id="18_jmp2"]
+[ext_resource type="Texture2D" uid="uid://dn4jdxosyjjp2" path="res://sprites/elly/frames/jump/jump_3.png" id="19_jmp3"]
+[ext_resource type="Texture2D" uid="uid://bcrqsmn88eun3" path="res://sprites/elly/frames/jump/jump_4.png" id="20_jmp4"]
+[ext_resource type="Texture2D" uid="uid://ctn3xw8tv734c" path="res://sprites/elly/frames/sit_call/sit_call_1.png" id="21_ekek3"]
+[ext_resource type="Texture2D" uid="uid://b3mwiwt4a283k" path="res://sprites/elly/frames/sit_call/sit_call_2.png" id="22_bphwq"]
+[ext_resource type="Texture2D" uid="uid://bfpkaimp55lop" path="res://sprites/elly/frames/sit_call/sit_call_3.png" id="23_pk8p3"]
+[ext_resource type="Texture2D" uid="uid://84p4vcws24kx" path="res://sprites/elly/frames/sit_call/sit_call_4.png" id="24_e30g2"]
+[ext_resource type="Texture2D" uid="uid://b56r1ej0ykem4" path="res://sprites/elly/frames/sit_call_end/sit_call_01.png" id="25_ba7fg"]
+[ext_resource type="Texture2D" uid="uid://b3q6ljiidnwbd" path="res://sprites/elly/frames/sit_call_end/sit_call_2.png" id="26_d43u0"]
+[ext_resource type="Texture2D" uid="uid://ckdxmsty6ymg8" path="res://sprites/elly/frames/sit_call_end/sit_call_3.png" id="27_i4s2o"]
+[ext_resource type="Texture2D" uid="uid://bdku16bf7d287" path="res://sprites/elly/frames/sit_call_end/sit_call_4.png" id="28_67qq3"]
 
 [sub_resource type="SpriteFrames" id="SpriteFrames_mun0n"]
 animations = [{
@@ -39,7 +43,7 @@ animations = [{
 "duration": 1.0,
 "texture": ExtResource("3_srtiq")
 }],
-"loop": true,
+"loop": 1,
 "name": &"gaming",
 "speed": 5.0
 }, {
@@ -47,7 +51,7 @@ animations = [{
 "duration": 1.0,
 "texture": ExtResource("1_vey2l")
 }],
-"loop": true,
+"loop": 1,
 "name": &"idle",
 "speed": 5.0
 }, {
@@ -64,7 +68,7 @@ animations = [{
 "duration": 1.0,
 "texture": ExtResource("20_jmp4")
 }],
-"loop": false,
+"loop": 0,
 "name": &"jump",
 "speed": 3.0
 }, {
@@ -105,15 +109,49 @@ animations = [{
 "duration": 1.0,
 "texture": ExtResource("16_cgi2e")
 }],
-"loop": true,
+"loop": 1,
 "name": &"scared",
 "speed": 3.0
 }, {
 "frames": [{
 "duration": 1.0,
+"texture": ExtResource("21_ekek3")
+}, {
+"duration": 1.0,
+"texture": ExtResource("22_bphwq")
+}, {
+"duration": 1.0,
+"texture": ExtResource("23_pk8p3")
+}, {
+"duration": 1.0,
+"texture": ExtResource("24_e30g2")
+}],
+"loop": 0,
+"name": &"sit_call",
+"speed": 5.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": ExtResource("25_ba7fg")
+}, {
+"duration": 1.0,
+"texture": ExtResource("26_d43u0")
+}, {
+"duration": 1.0,
+"texture": ExtResource("27_i4s2o")
+}, {
+"duration": 1.0,
+"texture": ExtResource("28_67qq3")
+}],
+"loop": 0,
+"name": &"sit_call_end",
+"speed": 5.0
+}, {
+"frames": [{
+"duration": 1.0,
 "texture": ExtResource("7_vey2l")
 }],
-"loop": true,
+"loop": 1,
 "name": &"surprised",
 "speed": 5.0
 }, {
@@ -130,7 +168,7 @@ animations = [{
 "duration": 1.0,
 "texture": ExtResource("6_srtiq")
 }],
-"loop": true,
+"loop": 1,
 "name": &"walk",
 "speed": 4.0
 }]
@@ -141,6 +179,4 @@ script = ExtResource("1_srtiq")
 [node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="." unique_id=1149878326]
 position = Vector2(64, 41)
 sprite_frames = SubResource("SpriteFrames_mun0n")
-animation = &"jump"
-frame = 3
-frame_progress = 1.0
+animation = &"sit_call"

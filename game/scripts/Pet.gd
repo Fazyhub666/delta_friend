@@ -31,6 +31,24 @@ func gaming() -> void:
 	_animated_sprite.speed_scale = 1.0
 
 
+func sit_call() -> void:
+	_animated_sprite.play("sit_call")
+	_animated_sprite.speed_scale = 1.0
+
+
+func sit_call_end() -> void:
+	_animated_sprite.play("sit_call_end")
+	_animated_sprite.speed_scale = 1.0
+
+
+func animation_duration(anim: StringName) -> float:
+	var frames: SpriteFrames = _animated_sprite.sprite_frames
+	var base := 0.0
+	for i in frames.get_frame_count(anim):
+		base += frames.get_frame_duration(anim, i)
+	return base / frames.get_animation_speed(anim)
+
+
 func scared() -> void:
 	_animated_sprite.play("scared")
 	_animated_sprite.speed_scale = 1.0
@@ -55,6 +73,13 @@ func jump(direction: int, duration: float = 0.0) -> void:
 
 func set_seated(seated: bool, offset: float) -> void:
 	if seated:
+		_animated_sprite.position = _base_sprite_pos + Vector2(0, -offset)
+	else:
+		_animated_sprite.position = _base_sprite_pos
+
+
+func set_sit_call_offset(enabled: bool, offset: float) -> void:
+	if enabled:
 		_animated_sprite.position = _base_sprite_pos + Vector2(0, -offset)
 	else:
 		_animated_sprite.position = _base_sprite_pos

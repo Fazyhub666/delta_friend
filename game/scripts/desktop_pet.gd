@@ -15,7 +15,7 @@ const JUMP_SPEED_REF := 400.0
 const JUMP_MAX_DIST := JUMP_SPEED_REF * JUMP_MAX_T
 const JUMP_CLEAR := 36.0
 
-enum State { REST, WALK, SIT, GAMING, WATCH, SCARED, JUMP, DRAG, FALLING }
+enum State { REST, WALK, SIT, GAMING, WATCH, SCARED, JUMP, DRAG, FALLING, SIT_CALL, SIT_CALL_END }
 
 @export var walk_speed := 60.0
 @export_range(0.2, 3.0, 0.1) var min_walk_time := 1.0
@@ -34,6 +34,10 @@ enum State { REST, WALK, SIT, GAMING, WATCH, SCARED, JUMP, DRAG, FALLING }
 @export_range(0.2, 3.0, 0.1) var watch_time := 0.8
 @export_range(0.0, 40.0, 1.0) var scared_offset := 6.0
 @export_range(0.0, 1.0, 0.05) var platform_jump_chance := 0.35
+@export_range(0.0, 1.0, 0.05) var sit_call_chance := 0.25
+@export_range(15.0, 60.0, 1.0) var sit_call_min_time := 15.0
+@export_range(15.0, 60.0, 1.0) var sit_call_max_time := 60.0
+@export_range(0.0, 40.0, 1.0) var sit_call_offset := 8.0
 
 var _state := State.REST
 var _state_timer := 0.0
@@ -57,6 +61,7 @@ var _launch_platform := Rect2()
 
 @onready var _window := get_window()
 @onready var _pet: Node2D = $Pet
+@onready var _pet_sprite: AnimatedSprite2D = _pet.get_node("AnimatedSprite2D")
 
 
 func _ready():
@@ -67,6 +72,7 @@ func _ready():
 	_state_timer = randf_range(min_rest_time, max_rest_time)
 	_setup_context_menu()
 	_jump_timer = randf_range(2.0, 4.0)
+	_pet_sprite.animation_finished.connect(_on_pet_animation_finished)
 
 
 func _unhandled_input(event):
@@ -79,6 +85,8 @@ func _unhandled_input(event):
 		if event.pressed:
 			if _state == State.SIT or _state == State.GAMING:
 				_pet.set_seated(false, sit_sprite_raise)
+			elif _state == State.SIT_CALL or _state == State.SIT_CALL_END:
+				_clear_sit_call()
 			if _state == State.WATCH or _state == State.SCARED:
 				if _clicked_on_maus(event.position):
 					_remove_maus()
@@ -110,6 +118,8 @@ func _process(delta):
 					return
 				if randf() < maus_chance and not _is_on_window():
 					_start_maus_event()
+				elif randf() < sit_call_chance:
+					_start_sit_call()
 				elif randf() < game_chance:
 					_start_sit()
 				else:
@@ -135,6 +145,16 @@ func _process(delta):
 			pass
 		State.JUMP:
 			_tick_jump(delta)
+		State.SIT_CALL:
+			_state_timer -= delta
+			if _state_timer <= 0.0:
+				_state = State.SIT_CALL_END
+				_state_timer = _pet.animation_duration(&"sit_call_end") + 0.5
+				_pet.sit_call_end()
+		State.SIT_CALL_END:
+			_state_timer -= delta
+			if _state_timer <= 0.0:
+				_end_sit_call()
 		State.DRAG:
 			_tick_drag(delta)
 		State.FALLING:
@@ -207,7 +227,7 @@ func _set_pet_scale(scale: float) -> void:
 	_pet.scale = Vector2.ONE * scale
 	_size_scale = scale
 	_position.x = anchor_x - _window.size.x * 0.5
-	var offset := sit_offset * _size_scale if (_state == State.SIT or _state == State.GAMING) else 0.0
+	var offset := sit_offset * _size_scale if (_state == State.SIT or _state == State.GAMING or _state == State.SIT_CALL or _state == State.SIT_CALL_END) else 0.0
 	_position.y = maxf(_feet_y - float(_window.size.y) + offset, _screen_bounds.position.y)
 	_window.position = Vector2i(round(_position))
 	_update_size_checkmarks()
@@ -264,6 +284,40 @@ func _stop_gaming():
 	_state = State.REST
 	_state_timer = randf_range(min_rest_time, max_rest_time)
 	_pet.idle()
+
+
+func _start_sit_call():
+	_state = State.SIT_CALL
+	_state_timer = randf_range(
+		minf(sit_call_min_time, sit_call_max_time),
+		maxf(sit_call_min_time, sit_call_max_time)
+	)
+	_apply_sit_call()
+	_pet.sit_call()
+
+
+func _apply_sit_call():
+	_position.y = _feet_y - float(_window.size.y) + sit_offset * _size_scale
+	_window.position = Vector2i(_position)
+	_pet.set_sit_call_offset(true, sit_call_offset)
+
+
+func _clear_sit_call():
+	_position.y = _feet_y - float(_window.size.y)
+	_window.position = Vector2i(_position)
+	_pet.set_sit_call_offset(false, sit_call_offset)
+
+
+func _end_sit_call():
+	_clear_sit_call()
+	_state = State.REST
+	_state_timer = randf_range(min_rest_time, max_rest_time)
+	_pet.idle()
+
+
+func _on_pet_animation_finished() -> void:
+	if _state == State.SIT_CALL_END:
+		_end_sit_call()
 
 
 func _start_maus_event():
@@ -574,6 +628,7 @@ func _land(res: Dictionary) -> void:
 func _enter_fall(vel: Vector2) -> void:
 	_pet.set_seated(false, sit_sprite_raise)
 	_pet.set_scared_offset(false, scared_offset)
+	_pet.set_sit_call_offset(false, sit_call_offset)
 	_remove_maus()
 	_platform = Rect2()
 	_launch_platform = Rect2()

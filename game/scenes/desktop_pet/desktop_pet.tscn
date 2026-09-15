@@ -15,6 +15,7 @@ max_game_time = 60.0
 sit_sprite_raise = 10.0
 maus_chance = 0.1
 scared_offset = 3.0
-platform_jump_chance = 0.9
+platform_jump_chance = 0.2
+sit_call_chance = 0.1
 
 [node name="Pet" parent="." unique_id=953983132 instance=ExtResource("1_u2nir")]
