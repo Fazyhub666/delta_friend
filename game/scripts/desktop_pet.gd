@@ -428,6 +428,22 @@ func _clamp_window_to_screen(pos: Vector2) -> Vector2:
 	)
 
 
+func _clamp_window_to_walk(pos: Vector2) -> Vector2:
+	var win := Vector2(_window.size)
+	var vb := _visual_bounds_in_window()
+	if vb.size.x <= 0.0 or vb.size.y <= 0.0 \
+			or vb.position.x < -0.001 or vb.position.y < -0.001 \
+			or vb.end.x > win.x + 0.001 or vb.end.y > win.y + 0.001:
+		return Vector2(
+			clampf(pos.x, _walk_bounds.position.x, maxf(_walk_bounds.end.x - win.x, _walk_bounds.position.x)),
+			clampf(pos.y, _walk_bounds.position.y, maxf(_walk_bounds.end.y - win.y, _walk_bounds.position.y))
+		)
+	return Vector2(
+		clampf(pos.x, _walk_bounds.position.x - vb.position.x, _walk_bounds.end.x - vb.end.x),
+		clampf(pos.y, _walk_bounds.position.y - vb.position.y, _walk_bounds.end.y - vb.end.y)
+	)
+
+
 func _tick_walk(delta):
 	_jump_timer -= delta
 	if _jump_timer <= 0.0:
@@ -458,8 +474,11 @@ func _tick_walk(delta):
 
 
 func _tick_drag(delta):
+	if not Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT):
+		_enter_fall(_velocity * throw_scale)
+		return
 	var target := Vector2(DisplayServer.mouse_get_position()) + _grab_offset
-	target = _clamp_window_to_screen(target)
+	target = _clamp_window_to_walk(target)
 
 	var instant_velocity: Vector2 = (target - _position) / delta
 	_velocity = _velocity.lerp(instant_velocity, 0.4)
