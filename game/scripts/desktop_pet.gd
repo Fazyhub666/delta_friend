@@ -1,6 +1,8 @@
 extends Node2D
 
 const MausTexture := preload("res://sprites/maus/idle.png")
+const TicTacToe := preload("res://scripts/tictactoe.gd")
+const MENU_TICTACTOE := 300
 const MAUS_SIZE := Vector2(35, 12)
 const SIZE_SCALES := [1.0, 1.5, 2.0, 2.5, 3.0]
 const SIZE_LABELS := ["x0.5", "x1.0", "x1.5", "x2.0", "x2.5"]
@@ -53,6 +55,7 @@ var _maus: Sprite2D
 var _sprite_hit_cache := {}
 var _sprite_bounds_cache := {}
 var _context_menu: PopupMenu
+var _tictactoe_window: Window
 var _base_win_size := Vector2i.ZERO
 var _size_scale := 1.5
 var _feet_y := 0.0
@@ -184,6 +187,12 @@ func _setup_context_menu():
 	_context_menu = PopupMenu.new()
 	for action in ["Comer", "Jugar", "Limpiar", "Dormir", "Salir"]:
 		_context_menu.add_item(action)
+	var play_menu := PopupMenu.new()
+	play_menu.name = "Juegos"
+	play_menu.add_item("Tic Tac Toe", MENU_TICTACTOE)
+	play_menu.id_pressed.connect(_on_play_menu_item)
+	_context_menu.add_child(play_menu)
+	_context_menu.add_submenu_item("Play", play_menu.name)
 	_context_menu.add_separator()
 	_context_menu.add_item("Tamaño")
 	_context_menu.set_item_disabled(_context_menu.get_item_count() - 1, true)
@@ -210,6 +219,54 @@ func _on_menu_item(id: int) -> void:
 		_set_pet_scale(SIZE_SCALES[idx])
 		return
 	print("[MENU] placeholder presionado: ", _context_menu.get_item_text(id))
+
+
+func _on_play_menu_item(id: int) -> void:
+	if id == MENU_TICTACTOE:
+		_open_tictactoe()
+
+
+func _open_tictactoe() -> void:
+	if is_instance_valid(_tictactoe_window):
+		_tictactoe_window.show()
+		_tictactoe_window.grab_focus()
+		_start_tictactoe_gaming()
+		return
+	var game: Window = TicTacToe.new()
+	_tictactoe_window = game
+	get_tree().root.add_child(game)
+	var center := Vector2i(_window.position) + Vector2i(_window.size) / 2
+	game.position = center - Vector2i(game.size) / 2
+	game.close_requested.connect(_on_tictactoe_close_requested)
+	game.tree_exited.connect(_on_tictactoe_exited)
+	game.grab_focus()
+	_start_tictactoe_gaming()
+
+
+func _is_tictactoe_open() -> bool:
+	return is_instance_valid(_tictactoe_window) and _tictactoe_window.visible
+
+
+func _start_tictactoe_gaming() -> void:
+	_state = State.GAMING
+	_state_timer = INF
+	_apply_seated()
+	_pet.gaming()
+
+
+func _stop_tictactoe_gaming() -> void:
+	if _state == State.GAMING:
+		_stop_gaming()
+
+
+func _on_tictactoe_close_requested() -> void:
+	_tictactoe_window.hide()
+	_stop_tictactoe_gaming()
+
+
+func _on_tictactoe_exited() -> void:
+	_stop_tictactoe_gaming()
+	_tictactoe_window = null
 
 
 func _apply_default_scale() -> void:
@@ -620,9 +677,12 @@ func _land(res: Dictionary) -> void:
 	_velocity = Vector2.ZERO
 	_launch_platform = Rect2()
 	_window.position = Vector2i(round(_position))
-	_pet.idle()
-	_state = State.REST
-	_state_timer = randf_range(min_rest_time, max_rest_time)
+	if _is_tictactoe_open():
+		_start_tictactoe_gaming()
+	else:
+		_pet.idle()
+		_state = State.REST
+		_state_timer = randf_range(min_rest_time, max_rest_time)
 
 
 func _enter_fall(vel: Vector2) -> void:
