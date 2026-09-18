@@ -55,6 +55,7 @@ var _maus: Sprite2D
 var _sprite_hit_cache := {}
 var _sprite_bounds_cache := {}
 var _context_menu: PopupMenu
+var _size_menu: PopupMenu
 var _tictactoe_window: Window
 var _base_win_size := Vector2i.ZERO
 var _size_scale := 1.5
@@ -185,20 +186,24 @@ func _center_over_taskbar():
 
 func _setup_context_menu():
 	_context_menu = PopupMenu.new()
-	for action in ["Comer", "Jugar", "Limpiar", "Dormir", "Salir"]:
-		_context_menu.add_item(action)
+	_context_menu.add_item("Comer")
 	var play_menu := PopupMenu.new()
 	play_menu.name = "Juegos"
 	play_menu.add_item("Tic Tac Toe", MENU_TICTACTOE)
 	play_menu.id_pressed.connect(_on_play_menu_item)
 	_context_menu.add_child(play_menu)
 	_context_menu.add_submenu_item("Play", play_menu.name)
-	_context_menu.add_separator()
-	_context_menu.add_item("Tamaño")
-	_context_menu.set_item_disabled(_context_menu.get_item_count() - 1, true)
+	for action in ["Limpiar", "Dormir"]:
+		_context_menu.add_item(action)
+	_size_menu = PopupMenu.new()
+	_size_menu.name = "SizeMenu"
 	for i in SIZE_OPT_IDS.size():
-		_context_menu.add_check_item(SIZE_LABELS[i], SIZE_OPT_IDS[i])
-		_context_menu.set_item_as_radio_checkable(_context_menu.get_item_count() - 1, true)
+		_size_menu.add_check_item(SIZE_LABELS[i], SIZE_OPT_IDS[i])
+		_size_menu.set_item_as_radio_checkable(i, true)
+	_size_menu.id_pressed.connect(_on_menu_item)
+	_context_menu.add_child(_size_menu)
+	_context_menu.add_submenu_item("Size", _size_menu.name)
+	_context_menu.add_item("Salir")
 	_context_menu.id_pressed.connect(_on_menu_item)
 	_update_size_checkmarks()
 	get_tree().root.add_child.call_deferred(_context_menu)
@@ -292,8 +297,8 @@ func _set_pet_scale(scale: float) -> void:
 
 func _update_size_checkmarks() -> void:
 	for i in SIZE_OPT_IDS.size():
-		_context_menu.set_item_checked(
-			_context_menu.get_item_index(SIZE_OPT_IDS[i]),
+		_size_menu.set_item_checked(
+			_size_menu.get_item_index(SIZE_OPT_IDS[i]),
 			is_equal_approx(_size_scale, SIZE_SCALES[i])
 		)
 
