@@ -2,7 +2,9 @@ extends Node2D
 
 const MausTexture := preload("res://sprites/maus/idle.png")
 const TicTacToe := preload("res://scripts/tictactoe.gd")
+const Pong := preload("res://scripts/pong.gd")
 const MENU_TICTACTOE := 300
+const MENU_PONG := 301
 const MAUS_SIZE := Vector2(35, 12)
 const SIZE_SCALES := [1.0, 1.5, 2.0, 2.5, 3.0]
 const SIZE_LABELS := ["x0.5", "x1.0", "x1.5", "x2.0", "x2.5"]
@@ -57,6 +59,7 @@ var _sprite_bounds_cache := {}
 var _context_menu: PopupMenu
 var _size_menu: PopupMenu
 var _tictactoe_window: Window
+var _pong_window: Window
 var _base_win_size := Vector2i.ZERO
 var _size_scale := 1.5
 var _feet_y := 0.0
@@ -190,6 +193,7 @@ func _setup_context_menu():
 	var play_menu := PopupMenu.new()
 	play_menu.name = "Juegos"
 	play_menu.add_item("Tic Tac Toe", MENU_TICTACTOE)
+	play_menu.add_item("Pong", MENU_PONG)
 	play_menu.id_pressed.connect(_on_play_menu_item)
 	_context_menu.add_child(play_menu)
 	_context_menu.add_submenu_item("Play", play_menu.name)
@@ -229,6 +233,8 @@ func _on_menu_item(id: int) -> void:
 func _on_play_menu_item(id: int) -> void:
 	if id == MENU_TICTACTOE:
 		_open_tictactoe()
+	elif id == MENU_PONG:
+		_open_pong()
 
 
 func _open_tictactoe() -> void:
@@ -272,6 +278,49 @@ func _on_tictactoe_close_requested() -> void:
 func _on_tictactoe_exited() -> void:
 	_stop_tictactoe_gaming()
 	_tictactoe_window = null
+
+
+func _open_pong() -> void:
+	if is_instance_valid(_pong_window):
+		_pong_window.show()
+		_pong_window.grab_focus()
+		_start_pong_gaming()
+		return
+	var game: Window = Pong.new()
+	_pong_window = game
+	get_tree().root.add_child(game)
+	var center := Vector2i(_window.position) + Vector2i(_window.size) / 2
+	game.position = center - Vector2i(game.size) / 2
+	game.close_requested.connect(_on_pong_close_requested)
+	game.tree_exited.connect(_on_pong_exited)
+	game.grab_focus()
+	_start_pong_gaming()
+
+
+func _is_pong_open() -> bool:
+	return is_instance_valid(_pong_window) and _pong_window.visible
+
+
+func _start_pong_gaming() -> void:
+	_state = State.GAMING
+	_state_timer = INF
+	_apply_seated()
+	_pet.gaming()
+
+
+func _stop_pong_gaming() -> void:
+	if _state == State.GAMING:
+		_stop_gaming()
+
+
+func _on_pong_close_requested() -> void:
+	_pong_window.hide()
+	_stop_pong_gaming()
+
+
+func _on_pong_exited() -> void:
+	_stop_pong_gaming()
+	_pong_window = null
 
 
 func _apply_default_scale() -> void:
@@ -684,6 +733,8 @@ func _land(res: Dictionary) -> void:
 	_window.position = Vector2i(round(_position))
 	if _is_tictactoe_open():
 		_start_tictactoe_gaming()
+	elif _is_pong_open():
+		_start_pong_gaming()
 	else:
 		_pet.idle()
 		_state = State.REST
