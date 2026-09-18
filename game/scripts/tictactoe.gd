@@ -25,6 +25,8 @@ var _ai_delay := 0.0
 func _ready() -> void:
 	title = "Tic Tac Toe"
 	size = Vector2i(320, 400)
+	unresizable = true
+	maximize_disabled = true
 	_setup_ui()
 	_reset_game()
 
