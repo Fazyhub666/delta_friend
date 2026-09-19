@@ -353,10 +353,21 @@ func _update_size_checkmarks() -> void:
 
 
 func _start_walk():
-	_direction = 1 if randf() < 0.5 else -1
+	_direction = _preferred_walk_direction(_walk_range())
 	_state = State.WALK
 	_walk_timer = randf_range(min_walk_time, max_walk_time)
 	_pet.walk(_direction)
+
+
+func _preferred_walk_direction(rng: Vector2) -> int:
+	var lo := minf(rng.x, rng.y)
+	var hi := maxf(rng.x, rng.y)
+	var margin := maxf(8.0, (hi - lo) * 0.05)
+	if _position.x - lo <= margin:
+		return 1
+	if hi - _position.x <= margin:
+		return -1
+	return 1 if randf() < 0.5 else -1
 
 
 func _end_walk():
@@ -432,12 +443,31 @@ func _on_pet_animation_finished() -> void:
 
 
 func _start_maus_event():
-	var side := 1 if randf() < 0.5 else -1
+	var side := _choose_maus_side()
 	_pet.face(-side)
 	_spawn_maus(side)
 	_state = State.WATCH
 	_state_timer = watch_time
 	_pet.idle()
+
+
+func _choose_maus_side() -> int:
+	var maus_size := MAUS_SIZE * _size_scale
+	var win_x := float(_window.size.x)
+	var best_side := -1
+	var best_visible := -1.0
+	for side in [-1, 1]:
+		var maus_x := 0.0 if side < 0 else win_x - maus_size.x
+		var global_x := float(_window.position.x) + maus_x
+		var lo := maxf(global_x, _screen_bounds.position.x)
+		var hi := minf(global_x + maus_size.x, _screen_bounds.end.x)
+		var visible := maxf(0.0, hi - lo)
+		if visible > best_visible:
+			best_visible = visible
+			best_side = side
+		elif is_equal_approx(visible, best_visible) and randf() < 0.5:
+			best_side = side
+	return best_side
 
 
 func _spawn_maus(side: int):
@@ -629,6 +659,12 @@ func _tick_walk(delta):
 			return
 		_direction *= -1
 		_pet.walk(_direction)
+		_walk_timer -= delta
+		if _walk_timer <= 0.0:
+			_end_walk()
+			_window.position = Vector2i(_position)
+			return
+		_window.position = Vector2i(_position)
 		return
 	_walk_timer -= delta
 	if _walk_timer <= 0.0:
