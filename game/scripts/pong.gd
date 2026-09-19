@@ -240,10 +240,8 @@ class Court:
 			draw_rect(ai_rect, AI_COLOR)
 		draw_circle(ball_pos, ball_radius, Color(0.95, 0.95, 0.98))
 		var font := ThemeDB.fallback_font
-		draw_string(font, Vector2(mid_x - 130.0, 42.0), str(player_score),
-				HORIZONTAL_ALIGNMENT_LEFT, -1.0, 42, PLAYER_COLOR)
-		draw_string(font, Vector2(mid_x + 55.0, 42.0), str(ai_score),
-				HORIZONTAL_ALIGNMENT_LEFT, -1.0, 42, AI_COLOR)
+		_draw_centered(font, Vector2(mid_x * 0.5, 42.0), str(player_score), 42, PLAYER_COLOR)
+		_draw_centered(font, Vector2(mid_x * 1.5, 42.0), str(ai_score), 42, AI_COLOR)
 		if game_over:
 			var text := "Ganaste!" if player_won else "Gana la IA"
 			_draw_centered(font, Vector2(mid_x, s.y * 0.5 - 26.0), text, 34, Color(0.95, 0.95, 0.98))

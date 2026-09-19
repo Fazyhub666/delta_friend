@@ -58,11 +58,14 @@ func _setup_ui() -> void:
 	_status.add_theme_font_size_override("font_size", 22)
 	vbox.add_child(_status)
 
+	var grid_center := CenterContainer.new()
+	vbox.add_child(grid_center)
+
 	var grid := GridContainer.new()
 	grid.columns = 3
 	grid.add_theme_constant_override("h_separation", 6)
 	grid.add_theme_constant_override("v_separation", 6)
-	vbox.add_child(grid)
+	grid_center.add_child(grid)
 
 	for i in 9:
 		var button := Button.new()
