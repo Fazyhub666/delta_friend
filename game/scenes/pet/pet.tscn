@@ -109,9 +109,9 @@ animations = [{
 "duration": 1.0,
 "texture": ExtResource("16_cgi2e")
 }],
-"loop": 1,
+"loop": 0,
 "name": &"scared",
-"speed": 3.0
+"speed": 12.0
 }, {
 "frames": [{
 "duration": 1.0,
@@ -179,4 +179,6 @@ script = ExtResource("1_srtiq")
 [node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="." unique_id=1149878326]
 position = Vector2(64, 41)
 sprite_frames = SubResource("SpriteFrames_mun0n")
-animation = &"sit_call"
+animation = &"scared"
+frame = 11
+frame_progress = 1.0

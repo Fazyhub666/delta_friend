@@ -1,6 +1,7 @@
 extends Node2D
 
 const MausTexture := preload("res://sprites/maus/idle.png")
+const ScareStream := preload("res://sounds/elly/scare.ogg")
 const TicTacToe := preload("res://scripts/tictactoe.gd")
 const Pong := preload("res://scripts/pong.gd")
 const MENU_TICTACTOE := 300
@@ -42,6 +43,8 @@ enum State { REST, WALK, SIT, GAMING, WATCH, SCARED, JUMP, DRAG, FALLING, SIT_CA
 @export_range(15.0, 60.0, 1.0) var sit_call_min_time := 15.0
 @export_range(15.0, 60.0, 1.0) var sit_call_max_time := 60.0
 @export_range(0.0, 40.0, 1.0) var sit_call_offset := 8.0
+@export_range(0.1, 4.0, 0.1) var scare_pitch_scale := 1.0
+@export_range(-40.0, 6.0, 0.5) var scare_volume_db := 0.0
 
 var _state := State.REST
 var _state_timer := 0.0
@@ -488,6 +491,17 @@ func _enter_scared():
 	_state = State.SCARED
 	_pet.set_scared_offset(true, scared_offset)
 	_pet.scared()
+	_play_scare_sound()
+
+
+func _play_scare_sound() -> void:
+	var player := AudioStreamPlayer.new()
+	player.stream = ScareStream
+	player.pitch_scale = scare_pitch_scale
+	player.volume_db = scare_volume_db
+	player.finished.connect(player.queue_free)
+	add_child(player)
+	player.play()
 
 
 func _remove_maus():
