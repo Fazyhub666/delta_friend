@@ -10,9 +10,11 @@ var active := false
 
 var _helper_pid := -1
 var _out_path := ""
+var _helper_path := ""
 var _poll_timer := 0.0
 var _scale := 1.0
 var _restarts := 0
+var _retry_timer := 0.0
 
 
 func _ready() -> void:
@@ -24,6 +26,11 @@ func _ready() -> void:
 
 
 func _process(delta: float) -> void:
+	if not active and _helper_path != "":
+		_retry_timer += delta
+		if _retry_timer >= POLL_INTERVAL * 20.0:
+			_retry_timer = 0.0
+			_start_helper()
 	if not active:
 		return
 	_poll_timer += delta
@@ -39,7 +46,11 @@ func _exit_tree() -> void:
 func _start_helper() -> void:
 	if _helper_pid > 0 and OS.is_process_running(_helper_pid):
 		return
-	var script_path := ProjectSettings.globalize_path(HELPER_SCRIPT)
+	_helper_path = _materialize_helper()
+	if _helper_path == "":
+		active = false
+		return
+	var script_path := _helper_path
 	_helper_pid = OS.create_process("powershell.exe", PackedStringArray([
 		"-NoProfile",
 		"-ExecutionPolicy", "Bypass",
@@ -49,6 +60,23 @@ func _start_helper() -> void:
 		"-GamePid", str(OS.get_process_id()),
 	]))
 	active = _helper_pid > 0
+
+
+func _materialize_helper() -> String:
+	var source := FileAccess.get_file_as_string(HELPER_SCRIPT)
+	if source.is_empty():
+		push_error("window_manager: no se pudo leer " + HELPER_SCRIPT)
+		return ""
+	var script_dir := OS.get_environment("TEMP").path_join("delta_friend_helper")
+	DirAccess.make_dir_recursive_absolute(script_dir)
+	var target := script_dir.path_join("window_scan.ps1")
+	var f := FileAccess.open(target, FileAccess.WRITE)
+	if f == null:
+		push_error("window_manager: no se pudo escribir " + target)
+		return ""
+	f.store_string(source)
+	f.close()
+	return target
 
 
 func _stop_helper() -> void:

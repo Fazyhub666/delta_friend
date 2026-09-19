@@ -52,8 +52,8 @@ func _ready() -> void:
 
 	var checked_idx := -1
 	for i in pet.SIZE_OPT_IDS.size():
-		var ii: int = pet._context_menu.get_item_index(pet.SIZE_OPT_IDS[i])
-		if pet._context_menu.is_item_checked(ii):
+		var ii: int = pet._size_menu.get_item_index(pet.SIZE_OPT_IDS[i])
+		if pet._size_menu.is_item_checked(ii):
 			checked_idx = i
 	if checked_idx != 1:
 		print("[TEST] FAIL checkmark idx=", checked_idx)
