@@ -123,10 +123,6 @@ func _unhandled_input(event):
 		if event.button_index != MOUSE_BUTTON_LEFT:
 			return
 		if event.pressed:
-			if _state == State.SIT or _state == State.GAMING:
-				_pet.set_seated(false, sit_sprite_raise)
-			elif _state == State.SIT_CALL or _state == State.SIT_CALL_END:
-				_clear_sit_call()
 			if _state == State.WATCH or _state == State.SCARED or _state == State.MAUS_CHASE:
 				if _clicked_on_maus(event.position):
 					_remove_maus()
@@ -136,17 +132,23 @@ func _unhandled_input(event):
 					_state_timer = randf_range(min_rest_time, max_rest_time)
 					_pet.idle()
 					return
+			if not _clicked_on_pet(event.position):
+				return
+			if _state == State.SIT or _state == State.GAMING:
+				_pet.set_seated(false, sit_sprite_raise)
+			elif _state == State.SIT_CALL or _state == State.SIT_CALL_END:
+				_clear_sit_call()
+			if _state == State.WATCH or _state == State.SCARED or _state == State.MAUS_CHASE:
 				_remove_maus()
 				_cancel_maus_chase()
 				_reset_to_ground()
-			if not _clicked_on_pet(event.position):
-				return
 			_grab_offset = Vector2(_window.position) - Vector2(DisplayServer.mouse_get_position())
 			_velocity = Vector2.ZERO
 			_state = State.DRAG
 			_pet.surprised()
 		else:
-			_enter_fall(_velocity * throw_scale)
+			if _state == State.DRAG:
+				_enter_fall(_velocity * throw_scale)
 
 
 func _process(delta):
