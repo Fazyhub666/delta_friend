@@ -88,6 +88,11 @@ func _ready():
 	_pet_sprite.animation_finished.connect(_on_pet_animation_finished)
 
 
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_WM_WINDOW_FOCUS_OUT:
+		_reassert_topmost()
+
+
 func _unhandled_input(event):
 	if event is InputEventMouseButton:
 		if event.button_index == MOUSE_BUTTON_RIGHT and event.pressed:
@@ -209,8 +214,7 @@ func _reassert_topmost() -> void:
 		return
 	if _is_tictactoe_open() or _is_pong_open():
 		return
-	if not _window.always_on_top:
-		_window.always_on_top = true
+	_window.always_on_top = true
 
 
 func _setup_context_menu():
