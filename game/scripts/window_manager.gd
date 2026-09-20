@@ -102,11 +102,21 @@ func _refresh() -> void:
 	var rects: Array[Rect2] = []
 	for entry in data:
 		if entry is Array and entry.size() >= 4:
+			var all_numeric := true
+			var vals: Array[float] = []
+			for v in entry:
+				if v is float or v is int:
+					vals.append(float(v))
+				else:
+					all_numeric = false
+					break
+			if not all_numeric:
+				continue
 			rects.append(Rect2(
-				float(entry[0]) / _scale,
-				float(entry[1]) / _scale,
-				float(entry[2]) / _scale,
-				float(entry[3]) / _scale
+				vals[0] / _scale,
+				vals[1] / _scale,
+				vals[2] / _scale,
+				vals[3] / _scale
 			))
 	if rects != platforms:
 		platforms = rects

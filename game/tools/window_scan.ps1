@@ -37,8 +37,45 @@ public static class WinScan {
         return GetWindowRect(hWnd, out r);
     }
 
+    // EnumWindows recorre las ventanas en orden de Z (delante hacia atras).
+    // Por eso 'front' contiene las ventanas que ya aceptamos y estan delante.
+
+    // Devuelve true si w esta totalmente contenida por alguna ventana frontal.
+    static bool IsFullyCovered(long[] w, List<long[]> front) {
+        long wLeft = w[0], wTop = w[1], wRight = w[0] + w[2], wBottom = w[1] + w[3];
+        foreach (var f in front) {
+            if (f[0] <= wLeft && f[1] <= wTop && (f[0] + f[2]) >= wRight && (f[1] + f[3]) >= wBottom) return true;
+        }
+        return false;
+    }
+
+    // Devuelve true si el borde superior de w (fila y=w.Top) queda oculto por las ventanas frontales.
+    static bool TopEdgeCovered(long[] w, List<long[]> front) {
+        long edgeLeft = w[0];
+        long edgeRight = w[0] + w[2];
+        long top = w[1];
+        long coveredUntil = edgeLeft;
+        bool progress = true;
+        while (progress) {
+            progress = false;
+            foreach (var f in front) {
+                if (f[1] + f[3] <= top) continue;
+                if (f[1] > top) continue;
+                long fLeft = Math.Max(f[0], coveredUntil);
+                if (fLeft > coveredUntil) continue;
+                long fRight = Math.Min(f[0] + f[2], edgeRight);
+                if (fRight > coveredUntil) {
+                    coveredUntil = fRight;
+                    progress = true;
+                    if (coveredUntil >= edgeRight) return true;
+                }
+            }
+        }
+        return false;
+    }
+
     public static List<long[]> Scan(int gamePid) {
-        var result = new List<long[]>();
+        var front = new List<long[]>();
         EnumWindows((h, l) => {
             if (!IsWindowVisible(h)) return true;
             if (IsIconic(h)) return true;
@@ -55,10 +92,13 @@ public static class WinScan {
             long w = (long)r.Right - r.Left;
             long hh = (long)r.Bottom - r.Top;
             if (w < 20 || hh < 20) return true;
-            result.Add(new long[] { r.Left, r.Top, w, hh });
+            long[] rect = new long[] { r.Left, r.Top, w, hh };
+            if (IsFullyCovered(rect, front)) return true;
+            if (TopEdgeCovered(rect, front)) return true;
+            front.Add(rect);
             return true;
         }, IntPtr.Zero);
-        return result;
+        return front;
     }
 }
 "@
