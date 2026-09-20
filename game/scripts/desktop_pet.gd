@@ -19,6 +19,7 @@ const JUMP_MAX_T := 1.1
 const JUMP_SPEED_REF := 400.0
 const JUMP_MAX_DIST := JUMP_SPEED_REF * JUMP_MAX_T
 const JUMP_CLEAR := 36.0
+const TOPMOST_REASSERT_INTERVAL := 0.25
 
 enum State { REST, WALK, SIT, GAMING, WATCH, SCARED, JUMP, DRAG, FALLING, SIT_CALL, SIT_CALL_END }
 
@@ -68,6 +69,7 @@ var _size_scale := 1.5
 var _feet_y := 0.0
 var _platform := Rect2()
 var _launch_platform := Rect2()
+var _topmost_timer := 0.0
 
 @onready var _window := get_window()
 @onready var _pet: Node2D = $Pet
@@ -83,6 +85,11 @@ func _ready():
 	_setup_context_menu()
 	_jump_timer = randf_range(2.0, 4.0)
 	_pet_sprite.animation_finished.connect(_on_pet_animation_finished)
+
+
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_WM_WINDOW_FOCUS_OUT:
+		_reassert_topmost()
 
 
 func _unhandled_input(event):
@@ -118,6 +125,13 @@ func _unhandled_input(event):
 
 
 func _process(delta):
+	_topmost_timer += delta
+	if _topmost_timer >= TOPMOST_REASSERT_INTERVAL:
+		_topmost_timer = 0.0
+		_reassert_topmost()
+	if _window and _window.mode == Window.MODE_MINIMIZED:
+		_window.mode = Window.MODE_WINDOWED
+		_reassert_topmost()
 	if _state != State.DRAG and _state != State.FALLING and _state != State.JUMP:
 		_validate_platform()
 	match _state:
@@ -188,6 +202,11 @@ func _center_over_taskbar():
 		_feet_y - win_size.y
 	)
 	_window.position = Vector2i(_position)
+
+
+func _reassert_topmost() -> void:
+	if _window:
+		_window.always_on_top = true
 
 
 func _setup_context_menu():
