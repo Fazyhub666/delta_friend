@@ -30,6 +30,8 @@ func _ready() -> void:
 	_test_fall_simulation()
 	_test_walk()
 	_test_preferred_walk_direction()
+	_test_maus_chase_delay()
+	_test_maus_chase_sequence()
 	_windows_stop_helper()
 	if _failed == 0:
 		print("ALL PASSED (%d checks)" % _passed)
@@ -95,6 +97,8 @@ func _set_ground_state() -> void:
 	_pet._position = Vector2(500.0, WALK.end.y - WIN_SIZE.y)
 	_pet._window.position = Vector2i(_pet._position)
 	_pet._window.size = WIN_SIZE
+	_pet._maus_stretched = false
+	_pet._pet.position.x = 0.0
 	_pet._state = _pet.State.REST
 	_pet._jump_timer = 999.0
 
@@ -416,3 +420,95 @@ func _test_preferred_walk_direction() -> void:
 	_pet._position.x = (rng.x + rng.y) * 0.5
 	var dir: int = _pet._preferred_walk_direction(rng)
 	_check(dir == 1 or dir == -1, "dir: en el centro decide aleatoriamente")
+
+
+func _spawn_test_maus(side: int) -> void:
+	_pet._maus_side = side
+	_pet._spawn_maus(side)
+	_pet._maus_active = true
+	_pet._maus_timer = 0.0
+
+
+func _advance_maus_until(phase: int, max_steps: int = 6000) -> void:
+	var steps := 0
+	while _pet._state == _pet.State.MAUS_CHASE and _pet._maus_phase != phase and steps < max_steps:
+		_pet._tick_maus_chase(1.0 / 60.0)
+		steps += 1
+
+
+func _test_maus_chase_delay() -> void:
+	_set_ground_state()
+	_spawn_test_maus(-1)
+	_pet._maus_timer = _pet.maus_chase_delay - 0.1
+	_pet._tick_maus_wait(0.05)
+	_check(_pet._state != _pet.State.MAUS_CHASE, "caza: antes de los 30s no inicia")
+	_check(_pet._maus != null and is_instance_valid(_pet._maus), "caza: el maus sigue presente antes de los 30s")
+	_pet._tick_maus_wait(0.1)
+	_check(_pet._state == _pet.State.MAUS_CHASE, "caza: a los 30s inicia la secuencia")
+	_check(_pet._maus_phase == _pet.MausPhase.WALK1, "caza: primera fase reproduce maus_walk1")
+	_check(_pet._maus_flee_dir == 1, "caza: con el maus a la izquierda huye a la derecha")
+	_check(_pet._maus != null and is_instance_valid(_pet._maus), "caza: el maus no desaparece al iniciar")
+
+	_set_ground_state()
+	_spawn_test_maus(1)
+	_pet._maus_timer = _pet.maus_chase_delay
+	_pet._tick_maus_wait(0.0)
+	_check(_pet._state == _pet.State.MAUS_CHASE, "caza: dispara con el maus a la derecha")
+	_check(_pet._maus_flee_dir == -1, "caza: con el maus a la derecha huye a la izquierda")
+
+
+func _test_maus_chase_sequence() -> void:
+	_set_ground_state()
+	_pet.walk_speed = 500.0
+	_spawn_test_maus(-1)
+	_pet._start_maus_chase()
+	_check(_pet._state == _pet.State.MAUS_CHASE, "secuencia: entra en estado MAUS_CHASE")
+	_check(_pet._maus_phase == _pet.MausPhase.WALK1, "secuencia: empieza con maus_walk1")
+	_check(_pet._maus != null and is_instance_valid(_pet._maus), "secuencia: maus presente en maus_walk1")
+	_check(_pet._maus_stretched, "secuencia: la ventana se estira al iniciar")
+	_check(_pet._pet.position.x != 0.0, "secuencia: la pet se dibuja desplazada dentro de la ventana")
+	var win_anchor_check: float = float(_pet._window.position.x)
+	var maus_screen_check: float = win_anchor_check + _pet._maus.position.x
+
+	_advance_maus_until(_pet.MausPhase.WALK2_AWAY)
+	_check(_pet._maus_phase == _pet.MausPhase.WALK2_AWAY, "secuencia: tras la espera pasa a maus_walk2")
+	_check(_pet._maus != null and is_instance_valid(_pet._maus), "secuencia: maus presente mientras huye")
+
+	_advance_maus_until(_pet.MausPhase.WALK3_RETURN)
+	_check(_pet._maus_phase == _pet.MausPhase.WALK3_RETURN, "secuencia: tras salir de pantalla vuelve con maus_walk3")
+	_check(_pet._position.x >= _pet._screen_bounds.end.x, "secuencia: salio de pantalla por el borde")
+	_check(_pet._maus != null and is_instance_valid(_pet._maus), "secuencia: maus presente al volver")
+	_check(_approx(float(_pet._window.position.x), win_anchor_check, 0.75), "secuencia: la ventana esta anclada mientras la pet camina")
+	_check(_approx(float(_pet._window.position.x) + _pet._maus.position.x, maus_screen_check, 0.75), "secuencia: el maus queda fijo en pantalla al huir")
+
+	_advance_maus_until(_pet.MausPhase.CATCH)
+	_check(_pet._maus_phase == _pet.MausPhase.CATCH, "secuencia: al posicionarse frente al maus reproduce maus_catch")
+	_check(_pet._maus != null and is_instance_valid(_pet._maus), "secuencia: maus presente en maus_catch")
+	_check(_approx(float(_pet._window.position.x) + _pet._maus.position.x, maus_screen_check, 0.75), "secuencia: el maus sigue fijo en la vuelta")
+	_check(_approx(_pet._position.x, _pet._maus_anchor_x + float(_pet._maus_side) * _pet.MAUS_CATCH_CLOSER_LEFT, 1.0), "secuencia: la pet se acerca al maus para maus_catch")
+
+	var safety := 0
+	while _pet._maus != null and _pet._maus_phase == _pet.MausPhase.CATCH and safety < 1000:
+		_pet._tick_maus_chase(1.0 / 60.0)
+		safety += 1
+	_check(_pet._maus == null or not is_instance_valid(_pet._maus), "secuencia: el maus desaparece al empezar el ultimo frame de maus_catch")
+	_check(_pet._maus_phase == _pet.MausPhase.CATCH, "secuencia: la desaparicion ocurre durante maus_catch, no en catch2")
+
+	_advance_maus_until(_pet.MausPhase.CATCH2_AWAY)
+	_check(_pet._maus_phase == _pet.MausPhase.CATCH2_AWAY, "secuencia: tras la espera reproduce maus_catch2")
+	_check(_pet._maus == null or not is_instance_valid(_pet._maus), "secuencia: el maus no reaparece en maus_catch2")
+
+	_advance_maus_until(_pet.MausPhase.RETURN_HOME)
+	_check(_pet._maus_phase == _pet.MausPhase.RETURN_HOME, "secuencia: tras salir de nuevo regresa a la taskbar")
+
+	var steps := 0
+	while _pet._state == _pet.State.MAUS_CHASE and steps < 6000:
+		_pet._tick_maus_chase(1.0 / 60.0)
+		steps += 1
+	_check(_pet._state == _pet.State.REST, "secuencia: al volver al centro termina en REST")
+	var home_x: float = _pet._walk_bounds.position.x + (_pet._walk_bounds.size.x - float(_pet._window.size.x)) * 0.5
+	_check(_approx(_pet._position.x, home_x, 2.0), "secuencia: vuelve al centro de la taskbar")
+	_check(_approx(_pet._position.y, _pet._walk_bounds.end.y - float(_pet._window.size.y), 1.0), "secuencia: de vuelta en el suelo")
+	_check(not _pet._maus_stretched, "secuencia: la ventana revierte el estirado al terminar")
+	_check(_pet._window.size == WIN_SIZE, "secuencia: la ventana recupera su anchura original")
+	_check(_pet._pet.position.x == 0.0, "secuencia: la pet vuelve al ancla de la ventana")

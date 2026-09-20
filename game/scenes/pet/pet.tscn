@@ -13,23 +13,41 @@
 [ext_resource type="Texture2D" uid="uid://d4ixemghxcb6" path="res://sprites/elly/frames/surprised.png" id="7_vey2l"]
 [ext_resource type="Texture2D" uid="uid://c30yry11s01oc" path="res://sprites/elly/frames/scared/scared_3.png" id="7_y55iv"]
 [ext_resource type="Texture2D" uid="uid://c3qwv1f7ecjdk" path="res://sprites/elly/frames/scared/scared_4.png" id="8_0xa6o"]
+[ext_resource type="Texture2D" uid="uid://dst8j6u6au3kq" path="res://sprites/elly/frames/maus_catch/maus_catch_1.png" id="9_q68l0"]
 [ext_resource type="Texture2D" uid="uid://bk5j4occ841od" path="res://sprites/elly/frames/scared/scared_5.png" id="9_s1fmu"]
+[ext_resource type="Texture2D" uid="uid://b5sl6io05lkw" path="res://sprites/elly/frames/maus_catch/maus_catch_2.png" id="10_38rmh"]
 [ext_resource type="Texture2D" uid="uid://d1ruimtt0ymd3" path="res://sprites/elly/frames/scared/scared_6.png" id="10_etcm2"]
 [ext_resource type="Texture2D" uid="uid://djdnmwxr5vnpd" path="res://sprites/elly/frames/scared/scared_7.png" id="11_mpyet"]
+[ext_resource type="Texture2D" uid="uid://k8a3j25obysw" path="res://sprites/elly/frames/maus_catch/maus_catch_3.png" id="11_munex"]
 [ext_resource type="Texture2D" uid="uid://c2kysnhjoblsy" path="res://sprites/elly/frames/scared/scared_8.png" id="12_2goke"]
+[ext_resource type="Texture2D" uid="uid://bfkn5em2jjlx8" path="res://sprites/elly/frames/maus_catch/maus_catch_4.png" id="12_7j1y6"]
 [ext_resource type="Texture2D" uid="uid://eggk1dsg8krj" path="res://sprites/elly/frames/scared/scared_9.png" id="13_6blan"]
+[ext_resource type="Texture2D" uid="uid://bjm80tla1hxp1" path="res://sprites/elly/frames/maus_catch2/maus_catch2_1.png" id="13_aqm7s"]
+[ext_resource type="Texture2D" uid="uid://fbi7jl56tc1j" path="res://sprites/elly/frames/maus_catch2/maus_catch2_2.png" id="14_gxtdu"]
 [ext_resource type="Texture2D" uid="uid://ckjcfyk7tgbrf" path="res://sprites/elly/frames/scared/scared_10.png" id="14_qcolf"]
 [ext_resource type="Texture2D" uid="uid://baq1bbs5dcqd1" path="res://sprites/elly/frames/scared/scared_11.png" id="15_0nu4h"]
+[ext_resource type="Texture2D" uid="uid://berci3kjm0ad1" path="res://sprites/elly/frames/maus_catch2/maus_catch2_3.png" id="15_e11f8"]
 [ext_resource type="Texture2D" uid="uid://5ar7ivnyvxuv" path="res://sprites/elly/frames/scared/scared_12.png" id="16_cgi2e"]
+[ext_resource type="Texture2D" uid="uid://c117kkpjmdeyt" path="res://sprites/elly/frames/maus_catch2/maus_catch2_4.png" id="16_scnfe"]
+[ext_resource type="Texture2D" uid="uid://blkvae4035b8i" path="res://sprites/elly/frames/maus_walk1/maus_walk1_1.png" id="17_1qgs7"]
 [ext_resource type="Texture2D" uid="uid://bvmp52isr4hn2" path="res://sprites/elly/frames/jump/jump_1.png" id="17_jmp1"]
 [ext_resource type="Texture2D" uid="uid://b4a2jxl48sgn8" path="res://sprites/elly/frames/jump/jump_2.png" id="18_jmp2"]
+[ext_resource type="Texture2D" uid="uid://bngyq18efyejf" path="res://sprites/elly/frames/maus_walk1/maus_walk1_2.png" id="18_mxela"]
+[ext_resource type="Texture2D" uid="uid://81w81w2ylyhg" path="res://sprites/elly/frames/maus_walk2/maus_walk2_1.png" id="19_hnoh4"]
 [ext_resource type="Texture2D" uid="uid://dn4jdxosyjjp2" path="res://sprites/elly/frames/jump/jump_3.png" id="19_jmp3"]
+[ext_resource type="Texture2D" uid="uid://cc0gwdja5mx31" path="res://sprites/elly/frames/maus_walk2/maus_walk2_2.png" id="20_daba6"]
 [ext_resource type="Texture2D" uid="uid://bcrqsmn88eun3" path="res://sprites/elly/frames/jump/jump_4.png" id="20_jmp4"]
 [ext_resource type="Texture2D" uid="uid://ctn3xw8tv734c" path="res://sprites/elly/frames/sit_call/sit_call_1.png" id="21_ekek3"]
+[ext_resource type="Texture2D" uid="uid://b4dpxdb7qtccw" path="res://sprites/elly/frames/maus_walk2/maus_walk2_3.png" id="21_twm7j"]
+[ext_resource type="Texture2D" uid="uid://c10cu8172udjf" path="res://sprites/elly/frames/maus_walk2/maus_walk2_4.png" id="22_8jia4"]
 [ext_resource type="Texture2D" uid="uid://b3mwiwt4a283k" path="res://sprites/elly/frames/sit_call/sit_call_2.png" id="22_bphwq"]
+[ext_resource type="Texture2D" uid="uid://bvvrg7s4qkbn6" path="res://sprites/elly/frames/maus_walk3/maus_walk3_1.png" id="23_6muf8"]
 [ext_resource type="Texture2D" uid="uid://bfpkaimp55lop" path="res://sprites/elly/frames/sit_call/sit_call_3.png" id="23_pk8p3"]
+[ext_resource type="Texture2D" uid="uid://bofcqkx3w5p1c" path="res://sprites/elly/frames/maus_walk3/maus_walk3_2.png" id="24_4r4hm"]
 [ext_resource type="Texture2D" uid="uid://84p4vcws24kx" path="res://sprites/elly/frames/sit_call/sit_call_4.png" id="24_e30g2"]
 [ext_resource type="Texture2D" uid="uid://b56r1ej0ykem4" path="res://sprites/elly/frames/sit_call_end/sit_call_01.png" id="25_ba7fg"]
+[ext_resource type="Texture2D" uid="uid://hj0rnv5rowko" path="res://sprites/elly/frames/maus_walk3/maus_walk3_3.png" id="25_bhtaa"]
+[ext_resource type="Texture2D" uid="uid://dt7fbminf4y8v" path="res://sprites/elly/frames/maus_walk3/maus_walk3_4.png" id="26_bltlu"]
 [ext_resource type="Texture2D" uid="uid://b3q6ljiidnwbd" path="res://sprites/elly/frames/sit_call_end/sit_call_2.png" id="26_d43u0"]
 [ext_resource type="Texture2D" uid="uid://ckdxmsty6ymg8" path="res://sprites/elly/frames/sit_call_end/sit_call_3.png" id="27_i4s2o"]
 [ext_resource type="Texture2D" uid="uid://bdku16bf7d287" path="res://sprites/elly/frames/sit_call_end/sit_call_4.png" id="28_67qq3"]
@@ -71,6 +89,85 @@ animations = [{
 "loop": 0,
 "name": &"jump",
 "speed": 3.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": ExtResource("9_q68l0")
+}, {
+"duration": 1.0,
+"texture": ExtResource("10_38rmh")
+}, {
+"duration": 1.0,
+"texture": ExtResource("11_munex")
+}, {
+"duration": 1.0,
+"texture": ExtResource("12_7j1y6")
+}],
+"loop": 0,
+"name": &"maus_catch",
+"speed": 1.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": ExtResource("13_aqm7s")
+}, {
+"duration": 1.0,
+"texture": ExtResource("14_gxtdu")
+}, {
+"duration": 1.0,
+"texture": ExtResource("15_e11f8")
+}, {
+"duration": 1.0,
+"texture": ExtResource("16_scnfe")
+}],
+"loop": 1,
+"name": &"maus_catch2",
+"speed": 4.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": ExtResource("17_1qgs7")
+}, {
+"duration": 1.0,
+"texture": ExtResource("18_mxela")
+}],
+"loop": 0,
+"name": &"maus_walk1",
+"speed": 1.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": ExtResource("19_hnoh4")
+}, {
+"duration": 1.0,
+"texture": ExtResource("20_daba6")
+}, {
+"duration": 1.0,
+"texture": ExtResource("21_twm7j")
+}, {
+"duration": 1.0,
+"texture": ExtResource("22_8jia4")
+}],
+"loop": 1,
+"name": &"maus_walk2",
+"speed": 4.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": ExtResource("23_6muf8")
+}, {
+"duration": 1.0,
+"texture": ExtResource("24_4r4hm")
+}, {
+"duration": 1.0,
+"texture": ExtResource("25_bhtaa")
+}, {
+"duration": 1.0,
+"texture": ExtResource("26_bltlu")
+}],
+"loop": 1,
+"name": &"maus_walk3",
+"speed": 4.0
 }, {
 "frames": [{
 "duration": 1.0,
@@ -179,6 +276,4 @@ script = ExtResource("1_srtiq")
 [node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="." unique_id=1149878326]
 position = Vector2(64, 41)
 sprite_frames = SubResource("SpriteFrames_mun0n")
-animation = &"scared"
-frame = 11
-frame_progress = 1.0
+animation = &"maus_catch2"

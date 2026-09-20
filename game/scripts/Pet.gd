@@ -41,12 +41,52 @@ func sit_call_end() -> void:
 	_animated_sprite.speed_scale = 1.0
 
 
+func maus_walk1() -> void:
+	_animated_sprite.play("maus_walk1")
+	_animated_sprite.speed_scale = 1.0
+
+
+func maus_walk2(direction: int) -> void:
+	_animated_sprite.play("maus_walk2")
+	_animated_sprite.speed_scale = 1.0
+	_animated_sprite.flip_h = direction == -1
+
+
+func maus_walk3(direction: int) -> void:
+	_animated_sprite.play("maus_walk3")
+	_animated_sprite.speed_scale = 1.0
+	_animated_sprite.flip_h = direction == 1
+
+
+func maus_catch(direction: int) -> void:
+	_animated_sprite.play("maus_catch")
+	_animated_sprite.speed_scale = 1.0
+	_animated_sprite.flip_h = direction == 1
+
+
+func maus_catch2(direction: int) -> void:
+	_animated_sprite.play("maus_catch2")
+	_animated_sprite.speed_scale = 1.0
+	_animated_sprite.flip_h = direction == -1
+
+
 func animation_duration(anim: StringName) -> float:
 	var frames: SpriteFrames = _animated_sprite.sprite_frames
 	var base := 0.0
 	for i in frames.get_frame_count(anim):
 		base += frames.get_frame_duration(anim, i)
 	return base / frames.get_animation_speed(anim)
+
+
+func last_frame_start(anim: StringName) -> float:
+	var frames: SpriteFrames = _animated_sprite.sprite_frames
+	var n := frames.get_frame_count(anim)
+	if n <= 0:
+		return 0.0
+	var speed := frames.get_animation_speed(anim)
+	if speed <= 0.0:
+		return 0.0
+	return animation_duration(anim) - frames.get_frame_duration(anim, n - 1) / speed
 
 
 func scared() -> void:

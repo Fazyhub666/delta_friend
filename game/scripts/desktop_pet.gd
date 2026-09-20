@@ -21,8 +21,14 @@ const JUMP_SPEED_REF := 400.0
 const JUMP_MAX_DIST := JUMP_SPEED_REF * JUMP_MAX_T
 const JUMP_CLEAR := 36.0
 const TOPMOST_REASSERT_INTERVAL := 0.25
+const MAUS_FLEE_TIME := 5.0
+const MAUS_CHASE_WAIT := 1.0
+const MAUS_CATCH_CLOSER := 35.0
+const MAUS_CATCH_CLOSER_LEFT := 60.0
 
-enum State { REST, WALK, SIT, GAMING, WATCH, SCARED, JUMP, DRAG, FALLING, SIT_CALL, SIT_CALL_END }
+enum State { REST, WALK, SIT, GAMING, WATCH, SCARED, JUMP, DRAG, FALLING, SIT_CALL, SIT_CALL_END, MAUS_CHASE }
+
+enum MausPhase { WALK1, WALK2_AWAY, WALK3_RETURN, CATCH, CATCH2_AWAY, RETURN_HOME }
 
 @export var walk_speed := 60.0
 @export_range(0.2, 3.0, 0.1) var min_walk_time := 1.0
@@ -38,6 +44,7 @@ enum State { REST, WALK, SIT, GAMING, WATCH, SCARED, JUMP, DRAG, FALLING, SIT_CA
 @export_range(0.0, 40.0, 1.0) var sit_offset := 18.0
 @export_range(0.0, 40.0, 1.0) var sit_sprite_raise := 18.0
 @export_range(0.0, 1.0, 0.05) var maus_chance := 0.3
+@export_range(5.0, 120.0, 1.0) var maus_chase_delay := 30.0
 @export_range(0.2, 3.0, 0.1) var watch_time := 0.8
 @export_range(0.0, 40.0, 1.0) var scared_offset := 6.0
 @export_range(0.0, 1.0, 0.05) var platform_jump_chance := 0.35
@@ -59,6 +66,21 @@ var _screen_bounds := Rect2()
 var _grab_offset := Vector2()
 var _velocity := Vector2()
 var _maus: Sprite2D
+var _maus_active := false
+var _maus_timer := 0.0
+var _maus_side := 1
+var _maus_phase := MausPhase.WALK1
+var _maus_phase_timer := 0.0
+var _maus_flee_dir := 1
+var _maus_anchor_x := 0.0
+var _maus_catch_elapsed := 0.0
+var _maus_catch_vanish := 0.0
+var _maus_home_x := 0.0
+var _maus_off_screen := false
+var _maus_stretched := false
+var _maus_stretch_left := 0.0
+var _maus_win_w := 0.0
+var _maus_saved_size := Vector2i.ZERO
 var _sprite_hit_cache := {}
 var _sprite_bounds_cache := {}
 var _context_menu: PopupMenu
@@ -105,15 +127,17 @@ func _unhandled_input(event):
 				_pet.set_seated(false, sit_sprite_raise)
 			elif _state == State.SIT_CALL or _state == State.SIT_CALL_END:
 				_clear_sit_call()
-			if _state == State.WATCH or _state == State.SCARED:
+			if _state == State.WATCH or _state == State.SCARED or _state == State.MAUS_CHASE:
 				if _clicked_on_maus(event.position):
 					_remove_maus()
+					_cancel_maus_chase()
 					_reset_to_ground()
 					_state = State.REST
 					_state_timer = randf_range(min_rest_time, max_rest_time)
 					_pet.idle()
 					return
 				_remove_maus()
+				_cancel_maus_chase()
 				_reset_to_ground()
 			if not _clicked_on_pet(event.position):
 				return
@@ -133,7 +157,7 @@ func _process(delta):
 	if _window and _window.mode == Window.MODE_MINIMIZED:
 		_window.mode = Window.MODE_WINDOWED
 		_reassert_topmost()
-	if _state != State.DRAG and _state != State.FALLING and _state != State.JUMP:
+	if _state != State.DRAG and _state != State.FALLING and _state != State.JUMP and _state != State.MAUS_CHASE:
 		_validate_platform()
 	match _state:
 		State.REST:
@@ -166,8 +190,11 @@ func _process(delta):
 			_state_timer -= delta
 			if _state_timer <= 0.0:
 				_enter_scared()
+			_tick_maus_wait(delta)
 		State.SCARED:
-			pass
+			_tick_maus_wait(delta)
+		State.MAUS_CHASE:
+			_tick_maus_chase(delta)
 		State.JUMP:
 			_tick_jump(delta)
 		State.SIT_CALL:
@@ -484,8 +511,11 @@ func _on_pet_animation_finished() -> void:
 
 func _start_maus_event():
 	var side := _choose_maus_side()
+	_maus_side = side
 	_pet.face(-side)
 	_spawn_maus(side)
+	_maus_active = true
+	_maus_timer = 0.0
 	_state = State.WATCH
 	_state_timer = watch_time
 	_pet.idle()
@@ -512,6 +542,7 @@ func _choose_maus_side() -> int:
 
 func _spawn_maus(side: int):
 	_remove_maus()
+	_maus_side = side
 	var maus := Sprite2D.new()
 	maus.texture = MausTexture
 	maus.centered = false
@@ -542,9 +573,177 @@ func _play_scare_sound() -> void:
 
 
 func _remove_maus():
+	_maus_active = false
+	_maus_timer = 0.0
 	if _maus and is_instance_valid(_maus):
 		_maus.queue_free()
 	_maus = null
+
+
+func _tick_maus_wait(delta: float) -> void:
+	if not _maus_active:
+		return
+	_maus_timer += delta
+	if _maus_timer >= maus_chase_delay:
+		_start_maus_chase()
+
+
+func _start_maus_chase() -> void:
+	_maus_active = false
+	_maus_timer = 0.0
+	_maus_flee_dir = -_maus_side
+	_maus_anchor_x = _position.x
+	_begin_maus_stretch()
+	_maus_off_screen = false
+	_pet.set_scared_offset(false, scared_offset)
+	_state = State.MAUS_CHASE
+	_maus_phase = MausPhase.WALK1
+	_maus_phase_timer = _pet.animation_duration(&"maus_walk1") + MAUS_CHASE_WAIT
+	_pet.maus_walk1()
+
+
+func _tick_maus_chase(delta: float) -> void:
+	match _maus_phase:
+		MausPhase.WALK1:
+			_maus_phase_timer -= delta
+			if _maus_phase_timer <= 0.0:
+				_begin_maus_flee()
+		MausPhase.WALK2_AWAY:
+			_tick_maus_leg(delta, _maus_exit_x(), _begin_maus_return)
+		MausPhase.WALK3_RETURN:
+			if _step_toward_x(_maus_catch_x(), walk_speed * delta):
+				_begin_maus_catch()
+		MausPhase.CATCH:
+			_maus_catch_elapsed += delta
+			if _maus and is_instance_valid(_maus) and _maus_catch_elapsed >= _maus_catch_vanish:
+				_remove_maus()
+			_maus_phase_timer -= delta
+			if _maus_phase_timer <= 0.0:
+				_begin_maus_catch2()
+		MausPhase.CATCH2_AWAY:
+			_tick_maus_leg(delta, _maus_exit_x(), _begin_maus_return_home)
+		MausPhase.RETURN_HOME:
+			if _step_toward_x(_maus_home_x, walk_speed * delta):
+				_end_maus_chase()
+
+
+func _tick_maus_leg(delta: float, target_x: float, on_done: Callable) -> void:
+	if _maus_off_screen:
+		_maus_phase_timer -= delta
+	else:
+		if _step_toward_x(target_x, walk_speed * delta):
+			_maus_off_screen = true
+			_maus_phase_timer = MAUS_FLEE_TIME
+	if _maus_off_screen and _maus_phase_timer <= 0.0:
+		on_done.call()
+
+
+func _begin_maus_flee() -> void:
+	_maus_phase = MausPhase.WALK2_AWAY
+	_maus_off_screen = false
+	_pet.maus_walk2(_maus_flee_dir)
+
+
+func _begin_maus_return() -> void:
+	_maus_phase = MausPhase.WALK3_RETURN
+	_pet.maus_walk3(-_maus_flee_dir)
+
+
+func _begin_maus_catch() -> void:
+	_maus_phase = MausPhase.CATCH
+	_maus_catch_elapsed = 0.0
+	_maus_catch_vanish = _pet.last_frame_start(&"maus_catch")
+	_maus_phase_timer = _pet.animation_duration(&"maus_catch") + MAUS_CHASE_WAIT
+	_pet.maus_catch(-_maus_flee_dir)
+
+
+func _maus_catch_x() -> float:
+	var closer := MAUS_CATCH_CLOSER if _maus_side > 0 else MAUS_CATCH_CLOSER_LEFT
+	return _maus_anchor_x + float(_maus_side) * closer
+
+
+func _begin_maus_catch2() -> void:
+	_remove_maus()
+	_maus_phase = MausPhase.CATCH2_AWAY
+	_maus_off_screen = false
+	_pet.maus_catch2(_maus_flee_dir)
+
+
+func _begin_maus_return_home() -> void:
+	if _is_on_window():
+		_feet_y = _walk_bounds.end.y
+		_platform = Rect2()
+	_position.y = _feet_y - float(_window.size.y)
+	_apply_maus_pet_visual()
+	_maus_phase = MausPhase.RETURN_HOME
+	var win_w := _maus_win_w if _maus_stretched else float(_window.size.x)
+	_maus_home_x = _walk_bounds.position.x + (_walk_bounds.size.x - win_w) * 0.5
+	var dir := 1 if _maus_home_x >= _position.x else -1
+	_pet.walk(dir)
+
+
+func _end_maus_chase() -> void:
+	_maus_active = false
+	_maus_timer = 0.0
+	_end_maus_stretch()
+	_state = State.REST
+	_state_timer = randf_range(min_rest_time, max_rest_time)
+	_pet.idle()
+
+
+func _begin_maus_stretch() -> void:
+	_maus_saved_size = _window.size
+	_maus_win_w = float(_window.size.x)
+	var extend := _maus_win_w + 16.0
+	_maus_stretch_left = _screen_bounds.position.x - extend
+	_window.size.x = maxi(1, int(round(_screen_bounds.size.x + 2.0 * extend)))
+	if _maus and is_instance_valid(_maus):
+		_maus.position.x = float(_window.position.x) + _maus.position.x - _maus_stretch_left
+	_maus_stretched = true
+	_apply_maus_pet_visual()
+
+
+func _end_maus_stretch() -> void:
+	if not _maus_stretched:
+		return
+	_maus_stretched = false
+	_window.size = _maus_saved_size
+	_pet.position.x = 0.0
+	_window.position = Vector2i(round(_position))
+
+
+func _apply_maus_pet_visual() -> void:
+	if _maus_stretched:
+		_pet.position.x = _position.x - _maus_stretch_left
+		_window.position = Vector2i(round(_maus_stretch_left), round(_position.y))
+	else:
+		_pet.position.x = 0.0
+		_window.position = Vector2i(round(_position))
+
+
+func _maus_exit_x() -> float:
+	var win_w := _maus_win_w if _maus_stretched else float(_window.size.x)
+	if _maus_flee_dir < 0:
+		return _screen_bounds.position.x - win_w - 8.0
+	return _screen_bounds.end.x + 8.0
+
+
+func _step_toward_x(target_x: float, max_step: float) -> bool:
+	var dx := target_x - _position.x
+	if is_zero_approx(dx):
+		return true
+	var step := minf(absf(dx), max_step)
+	_position.x += signf(dx) * step
+	_apply_maus_pet_visual()
+	return is_equal_approx(_position.x, target_x)
+
+
+func _cancel_maus_chase() -> void:
+	if _state == State.MAUS_CHASE:
+		_state = State.REST
+		_state_timer = randf_range(min_rest_time, max_rest_time)
+	_end_maus_stretch()
+	_pet.set_scared_offset(false, scared_offset)
 
 
 func _clicked_on_maus(pos: Vector2) -> bool:
