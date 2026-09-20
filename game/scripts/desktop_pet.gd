@@ -6,6 +6,7 @@ const TicTacToe := preload("res://scripts/tictactoe.gd")
 const Pong := preload("res://scripts/pong.gd")
 const MENU_TICTACTOE := 300
 const MENU_PONG := 301
+const MENU_SHUTDOWN := 302
 const MAUS_SIZE := Vector2(35, 12)
 const SIZE_SCALES := [1.0, 1.5, 2.0, 2.5, 3.0]
 const SIZE_LABELS := ["x0.5", "x1.0", "x1.5", "x2.0", "x2.5"]
@@ -85,11 +86,6 @@ func _ready():
 	_setup_context_menu()
 	_jump_timer = randf_range(2.0, 4.0)
 	_pet_sprite.animation_finished.connect(_on_pet_animation_finished)
-
-
-func _notification(what: int) -> void:
-	if what == NOTIFICATION_WM_WINDOW_FOCUS_OUT:
-		_reassert_topmost()
 
 
 func _unhandled_input(event):
@@ -205,7 +201,15 @@ func _center_over_taskbar():
 
 
 func _reassert_topmost() -> void:
-	if _window:
+	if _window == null:
+		return
+	if _context_menu and _context_menu.visible:
+		if _window.always_on_top:
+			_window.always_on_top = false
+		return
+	if _is_tictactoe_open() or _is_pong_open():
+		return
+	if not _window.always_on_top:
 		_window.always_on_top = true
 
 
@@ -229,7 +233,8 @@ func _setup_context_menu():
 	_size_menu.id_pressed.connect(_on_menu_item)
 	_context_menu.add_child(_size_menu)
 	_context_menu.add_submenu_item("Size", _size_menu.name)
-	_context_menu.add_item("Salir")
+	_context_menu.add_item("Shutdown", MENU_SHUTDOWN)
+	_context_menu.add_item("Exit")
 	_context_menu.id_pressed.connect(_on_menu_item)
 	_update_size_checkmarks()
 	get_tree().root.add_child.call_deferred(_context_menu)
@@ -245,6 +250,9 @@ func _open_context_menu():
 
 
 func _on_menu_item(id: int) -> void:
+	if id == MENU_SHUTDOWN:
+		get_tree().quit()
+		return
 	var idx := SIZE_OPT_IDS.find(id)
 	if idx >= 0:
 		_set_pet_scale(SIZE_SCALES[idx])
@@ -260,6 +268,7 @@ func _on_play_menu_item(id: int) -> void:
 
 
 func _open_tictactoe() -> void:
+	_window.always_on_top = false
 	if is_instance_valid(_tictactoe_window):
 		_tictactoe_window.show()
 		_tictactoe_window.grab_focus()
@@ -294,15 +303,18 @@ func _stop_tictactoe_gaming() -> void:
 
 func _on_tictactoe_close_requested() -> void:
 	_tictactoe_window.hide()
+	_window.always_on_top = true
 	_stop_tictactoe_gaming()
 
 
 func _on_tictactoe_exited() -> void:
+	_window.always_on_top = true
 	_stop_tictactoe_gaming()
 	_tictactoe_window = null
 
 
 func _open_pong() -> void:
+	_window.always_on_top = false
 	if is_instance_valid(_pong_window):
 		_pong_window.show()
 		_pong_window.grab_focus()
@@ -337,10 +349,12 @@ func _stop_pong_gaming() -> void:
 
 func _on_pong_close_requested() -> void:
 	_pong_window.hide()
+	_window.always_on_top = true
 	_stop_pong_gaming()
 
 
 func _on_pong_exited() -> void:
+	_window.always_on_top = true
 	_stop_pong_gaming()
 	_pong_window = null
 
