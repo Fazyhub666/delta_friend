@@ -26,9 +26,13 @@ const MAUS_CHASE_WAIT := 1.0
 const MAUS_CATCH_CLOSER := 35.0
 const MAUS_CATCH_CLOSER_LEFT := 60.0
 
-enum State { REST, WALK, SIT, GAMING, WATCH, SCARED, JUMP, DRAG, FALLING, SIT_CALL, SIT_CALL_END, MAUS_CHASE }
+enum State { REST, WALK, SIT, GAMING, WATCH, SCARED, JUMP, DRAG, FALLING, SIT_CALL, SIT_CALL_END, SIT_BOOK, MAUS_CHASE, BOOK }
 
 enum MausPhase { WALK1, WALK2_AWAY, WALK3_RETURN, CATCH, CATCH2_AWAY, RETURN_HOME }
+
+enum BookPhase { LEAVE, HIDDEN, RETURN, READING, END_LEAVE, END_HIDDEN, END_RETURN }
+
+enum BookAction { IDLE, WALK, SIT }
 
 @export var walk_speed := 60.0
 @export_range(0.2, 3.0, 0.1) var min_walk_time := 1.0
@@ -52,6 +56,17 @@ enum MausPhase { WALK1, WALK2_AWAY, WALK3_RETURN, CATCH, CATCH2_AWAY, RETURN_HOM
 @export_range(15.0, 60.0, 1.0) var sit_call_min_time := 15.0
 @export_range(15.0, 60.0, 1.0) var sit_call_max_time := 60.0
 @export_range(0.0, 40.0, 1.0) var sit_call_offset := 8.0
+@export_range(0.0, 1.0, 0.05) var sit_book_chance := 0.25
+@export_range(5.0, 120.0, 1.0) var sit_book_min_time := 30.0
+@export_range(5.0, 120.0, 1.0) var sit_book_max_time := 60.0
+@export_range(0.0, 40.0, 1.0) var sit_book_offset := 10.0
+@export_range(0.0, 1.0, 0.05) var book_chance := 0.2
+@export_range(30.0, 300.0, 5.0) var book_min_time := 60.0
+@export_range(30.0, 300.0, 5.0) var book_max_time := 180.0
+@export_range(2.0, 15.0, 0.5) var book_away_time := 5.0
+@export_range(0.0, 1.0, 0.05) var book_sit_chance := 0.2
+@export_range(5.0, 60.0, 1.0) var book_sit_min_time := 15.0
+@export_range(5.0, 60.0, 1.0) var book_sit_max_time := 30.0
 @export_range(0.1, 4.0, 0.1) var scare_pitch_scale := 1.0
 @export_range(-40.0, 6.0, 0.5) var scare_volume_db := 0.0
 
@@ -93,6 +108,16 @@ var _feet_y := 0.0
 var _platform := Rect2()
 var _launch_platform := Rect2()
 var _topmost_timer := 0.0
+var _book_mode := false
+var _book_phase := BookPhase.LEAVE
+var _book_side := 1
+var _book_target_x := 0.0
+var _book_timer := 0.0
+var _book_action := BookAction.IDLE
+var _book_action_timer := 0.0
+var _book_walk_timer := 0.0
+var _book_walk_dir := 1
+var _book_first_return := true
 
 @onready var _window := get_window()
 @onready var _pet: Node2D = $Pet
@@ -138,6 +163,10 @@ func _unhandled_input(event):
 				_pet.set_seated(false, sit_sprite_raise)
 			elif _state == State.SIT_CALL or _state == State.SIT_CALL_END:
 				_clear_sit_call()
+			elif _state == State.SIT_BOOK:
+				_clear_sit_book()
+			elif _state == State.BOOK:
+				_cancel_book_event()
 			if _state == State.WATCH or _state == State.SCARED or _state == State.MAUS_CHASE:
 				_remove_maus()
 				_cancel_maus_chase()
@@ -171,6 +200,10 @@ func _process(delta):
 					_start_maus_event()
 				elif randf() < sit_call_chance:
 					_start_sit_call()
+				elif randf() < sit_book_chance:
+					_start_sit_book()
+				elif randf() < book_chance:
+					_start_book_event()
 				elif randf() < game_chance:
 					_start_sit()
 				else:
@@ -209,6 +242,12 @@ func _process(delta):
 			_state_timer -= delta
 			if _state_timer <= 0.0:
 				_end_sit_call()
+		State.SIT_BOOK:
+			_state_timer -= delta
+			if _state_timer <= 0.0:
+				_end_sit_book()
+		State.BOOK:
+			_tick_book(delta)
 		State.DRAG:
 			_tick_drag(delta)
 		State.FALLING:
@@ -301,6 +340,7 @@ func _on_play_menu_item(id: int) -> void:
 
 
 func _open_tictactoe() -> void:
+	_cancel_book_event()
 	_window.always_on_top = false
 	if is_instance_valid(_tictactoe_window):
 		_tictactoe_window.show()
@@ -347,6 +387,7 @@ func _on_tictactoe_exited() -> void:
 
 
 func _open_pong() -> void:
+	_cancel_book_event()
 	_window.always_on_top = false
 	if is_instance_valid(_pong_window):
 		_pong_window.show()
@@ -407,7 +448,7 @@ func _set_pet_scale(scale: float) -> void:
 	_pet.scale = Vector2.ONE * scale
 	_size_scale = scale
 	_position.x = anchor_x - _window.size.x * 0.5
-	var offset := sit_offset * _size_scale if (_state == State.SIT or _state == State.GAMING or _state == State.SIT_CALL or _state == State.SIT_CALL_END) else 0.0
+	var offset := sit_offset * _size_scale if (_state == State.SIT or _state == State.GAMING or _state == State.SIT_CALL or _state == State.SIT_CALL_END or _state == State.SIT_BOOK) else 0.0
 	_position.y = maxf(_feet_y - float(_window.size.y) + offset, _screen_bounds.position.y)
 	_window.position = Vector2i(round(_position))
 	_update_size_checkmarks()
@@ -504,6 +545,221 @@ func _end_sit_call():
 	_state = State.REST
 	_state_timer = randf_range(min_rest_time, max_rest_time)
 	_pet.idle()
+
+
+func _start_sit_book():
+	_state = State.SIT_BOOK
+	_state_timer = randf_range(
+		minf(sit_book_min_time, sit_book_max_time),
+		maxf(sit_book_min_time, sit_book_max_time)
+	)
+	_apply_sit_book()
+	_pet.sit_book()
+
+
+func _apply_sit_book():
+	_position.y = _feet_y - float(_window.size.y) + sit_offset * _size_scale
+	_window.position = Vector2i(_position)
+	_pet.set_sit_book_offset(true, sit_book_offset)
+
+
+func _clear_sit_book():
+	_position.y = _feet_y - float(_window.size.y)
+	_window.position = Vector2i(_position)
+	_pet.set_sit_book_offset(false, sit_book_offset)
+
+
+func _end_sit_book():
+	_clear_sit_book()
+	_state = State.REST
+	_state_timer = randf_range(min_rest_time, max_rest_time)
+	_pet.idle()
+
+
+func _start_book_event() -> void:
+	_reset_to_ground()
+	_book_mode = false
+	_book_first_return = true
+	_book_phase = BookPhase.LEAVE
+	_book_side = _book_exit_side()
+	_book_target_x = _book_offscreen_x(_book_side)
+	_book_action = BookAction.IDLE
+	_state = State.BOOK
+	_pet.walk(_book_side)
+
+
+func _tick_book(delta: float) -> void:
+	match _book_phase:
+		BookPhase.LEAVE:
+			if _book_step_toward(_book_target_x, delta):
+				_book_phase = BookPhase.HIDDEN
+				_book_timer = book_away_time
+		BookPhase.HIDDEN:
+			_book_timer -= delta
+			if _book_timer <= 0.0:
+				_begin_book_return()
+		BookPhase.RETURN:
+			if _book_step_toward(_book_target_x, delta):
+				_begin_book_reading()
+		BookPhase.READING:
+			_tick_book_reading(delta)
+		BookPhase.END_LEAVE:
+			if _book_step_toward(_book_target_x, delta):
+				_book_phase = BookPhase.END_HIDDEN
+				_book_timer = book_away_time
+		BookPhase.END_HIDDEN:
+			_book_timer -= delta
+			if _book_timer <= 0.0:
+				_begin_book_return()
+		BookPhase.END_RETURN:
+			if _book_step_toward(_book_target_x, delta):
+				_finish_book_event()
+
+
+func _book_exit_side() -> int:
+	var left_dist := _position.x - _screen_bounds.position.x
+	var right_dist := _screen_bounds.end.x - (_position.x + float(_window.size.x))
+	return -1 if left_dist < right_dist else 1
+
+
+func _book_offscreen_x(dir: int) -> float:
+	if dir > 0:
+		return _screen_bounds.end.x + 8.0
+	return _screen_bounds.position.x - float(_window.size.x) - 8.0
+
+
+func _book_return_x() -> float:
+	var rng := _walk_range()
+	return randf_range(minf(rng.x, rng.y), maxf(rng.x, rng.y))
+
+
+func _book_step_toward(target_x: float, delta: float) -> bool:
+	var dx := target_x - _position.x
+	if is_zero_approx(dx):
+		return true
+	var step := minf(absf(dx), walk_speed * delta)
+	_position.x += signf(dx) * step
+	_window.position = Vector2i(round(_position))
+	return is_equal_approx(_position.x, target_x)
+
+
+func _begin_book_return() -> void:
+	_book_side = -_book_side
+	_book_target_x = _book_return_x()
+	if _book_first_return:
+		_book_phase = BookPhase.RETURN
+		_book_mode = true
+		_pet.walk_book(_book_side)
+	else:
+		_book_phase = BookPhase.END_RETURN
+		_book_mode = false
+		_pet.walk(_book_side)
+
+
+func _begin_book_reading() -> void:
+	_book_phase = BookPhase.READING
+	_book_timer = randf_range(
+		minf(book_min_time, book_max_time),
+		maxf(book_min_time, book_max_time)
+	)
+	_book_action = BookAction.IDLE
+	_book_action_timer = 0.0
+	_pet.idle_book()
+
+
+func _resume_book_reading() -> void:
+	_book_phase = BookPhase.READING
+	_book_action = BookAction.IDLE
+	_book_action_timer = 0.0
+	_pet.idle_book()
+
+
+func _tick_book_reading(delta: float) -> void:
+	_book_timer -= delta
+	if _book_timer <= 0.0:
+		_begin_book_end_leave()
+		return
+	match _book_action:
+		BookAction.IDLE:
+			_book_action_timer -= delta
+			if _book_action_timer <= 0.0:
+				if randf() < book_sit_chance:
+					_begin_book_sit()
+				else:
+					_begin_book_walk()
+		BookAction.WALK:
+			_tick_book_walk(delta)
+		BookAction.SIT:
+			_book_action_timer -= delta
+			if _book_action_timer <= 0.0:
+				_clear_sit_book()
+				_begin_book_idle()
+
+
+func _begin_book_idle() -> void:
+	_book_action = BookAction.IDLE
+	_book_action_timer = randf_range(min_rest_time, max_rest_time)
+	_pet.idle_book()
+
+
+func _begin_book_walk() -> void:
+	_book_action = BookAction.WALK
+	_book_walk_timer = randf_range(min_walk_time, max_walk_time)
+	_book_walk_dir = _preferred_walk_direction(_walk_range())
+	_pet.walk_book(_book_walk_dir)
+
+
+func _tick_book_walk(delta: float) -> void:
+	var new_x: float = _position.x + walk_speed * _book_walk_dir * delta
+	var rng := _walk_range()
+	var clamped_x := clampf(new_x, minf(rng.x, rng.y), maxf(rng.x, rng.y))
+	var hit_edge := not is_equal_approx(clamped_x, new_x)
+	_position.x = clamped_x
+	_window.position = Vector2i(round(_position))
+	if hit_edge:
+		_book_walk_dir *= -1
+		_pet.walk_book(_book_walk_dir)
+	_book_walk_timer -= delta
+	if _book_walk_timer <= 0.0:
+		_begin_book_idle()
+
+
+func _begin_book_sit() -> void:
+	_book_action = BookAction.SIT
+	_apply_sit_book()
+	_pet.sit_book()
+	_book_action_timer = randf_range(
+		minf(book_sit_min_time, book_sit_max_time),
+		maxf(book_sit_min_time, book_sit_max_time)
+	)
+
+
+func _begin_book_end_leave() -> void:
+	if _book_action == BookAction.SIT:
+		_clear_sit_book()
+	_book_first_return = false
+	_book_phase = BookPhase.END_LEAVE
+	_book_side = _book_exit_side()
+	_book_target_x = _book_offscreen_x(_book_side)
+	_pet.walk_book(_book_side)
+
+
+func _finish_book_event() -> void:
+	_book_mode = false
+	_book_first_return = true
+	_book_phase = BookPhase.LEAVE
+	_state = State.REST
+	_state_timer = randf_range(min_rest_time, max_rest_time)
+	_pet.idle()
+
+
+func _cancel_book_event() -> void:
+	if _state != State.BOOK and not _book_mode:
+		return
+	_clear_sit_book()
+	_book_mode = false
+	_book_first_return = true
+	_book_phase = BookPhase.LEAVE
 
 
 func _on_pet_animation_finished() -> void:
@@ -1023,6 +1279,9 @@ func _land(res: Dictionary) -> void:
 		_start_tictactoe_gaming()
 	elif _is_pong_open():
 		_start_pong_gaming()
+	elif _book_mode:
+		_state = State.BOOK
+		_resume_book_reading()
 	else:
 		_pet.idle()
 		_state = State.REST
@@ -1033,6 +1292,7 @@ func _enter_fall(vel: Vector2) -> void:
 	_pet.set_seated(false, sit_sprite_raise)
 	_pet.set_scared_offset(false, scared_offset)
 	_pet.set_sit_call_offset(false, sit_call_offset)
+	_pet.set_sit_book_offset(false, sit_book_offset)
 	_remove_maus()
 	_platform = Rect2()
 	_launch_platform = Rect2()

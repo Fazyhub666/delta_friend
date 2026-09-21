@@ -32,6 +32,8 @@ func _ready() -> void:
 	_test_preferred_walk_direction()
 	_test_maus_chase_delay()
 	_test_maus_chase_sequence()
+	_test_book_event()
+	_test_book_cancel()
 	_windows_stop_helper()
 	if _failed == 0:
 		print("ALL PASSED (%d checks)" % _passed)
@@ -512,3 +514,86 @@ func _test_maus_chase_sequence() -> void:
 	_check(not _pet._maus_stretched, "secuencia: la ventana revierte el estirado al terminar")
 	_check(_pet._window.size == WIN_SIZE, "secuencia: la ventana recupera su anchura original")
 	_check(_pet._pet.position.x == 0.0, "secuencia: la pet vuelve al ancla de la ventana")
+
+
+func _advance_book_until(phase: int, max_steps: int = 6000) -> void:
+	var steps := 0
+	while _pet._state == _pet.State.BOOK and _pet._book_phase != phase and steps < max_steps:
+		_pet._tick_book(1.0 / 60.0)
+		steps += 1
+
+
+func _test_book_event() -> void:
+	_clear_platforms()
+	_set_ground_state()
+	_pet.walk_speed = 500.0
+	_pet._start_book_event()
+	_check(_pet._state == _pet.State.BOOK, "book: entra en estado BOOK")
+	_check(_pet._book_phase == _pet.BookPhase.LEAVE, "book: empieza saliendo por el borde")
+	_check(not _pet._book_mode, "book: sale sin el modo libro")
+
+	var exit_dir: int = _pet._book_side
+	_advance_book_until(_pet.BookPhase.HIDDEN)
+	_check(_pet._book_phase == _pet.BookPhase.HIDDEN, "book: pasa a HIDDEN al salir de pantalla")
+	if exit_dir > 0:
+		_check(_pet._position.x >= _pet._screen_bounds.end.x, "book: salio por el borde derecho")
+	else:
+		_check(_pet._position.x + float(_pet._window.size.x) <= _pet._screen_bounds.position.x, "book: salio por el borde izquierdo")
+
+	_pet._tick_book(0.2)
+	_check(_pet._book_phase == _pet.BookPhase.HIDDEN, "book: sigue oculto antes de los 5s")
+	_pet._tick_book(5.0)
+	_check(_pet._book_phase == _pet.BookPhase.RETURN, "book: pasados los 5s vuelve")
+	_check(_pet._book_mode, "book: activa el modo libro")
+	_check(_pet._pet_sprite.animation == &"walk_book", "book: vuelve con la animacion walk_book")
+
+	_advance_book_until(_pet.BookPhase.READING)
+	_check(_pet._book_phase == _pet.BookPhase.READING, "book: tras volver empieza a leer")
+	_check(_pet._book_mode, "book: modo libro activo durante la lectura")
+	_check(_pet._pet_sprite.animation == &"idle_book", "book: el idle pasa a idle_book")
+
+	_pet._begin_book_walk()
+	_check(_pet._pet_sprite.animation == &"walk_book", "book: el paseo usa walk_book")
+	var start_x: float = _pet._position.x
+	_pet._tick_book_walk(0.1)
+	_check(not is_equal_approx(_pet._position.x, start_x), "book: camina durante la lectura")
+
+	_pet._begin_book_sit()
+	_check(_pet._pet_sprite.animation == &"sit_book", "book: sentarse usa sit_book")
+	_check(is_equal_approx(_pet._position.y, _pet._feet_y - float(_pet._window.size.y) + _pet.sit_offset * _pet._size_scale), "book: sentarse aplica el offset")
+	_check(_pet._book_action_timer >= _pet.book_sit_min_time and _pet._book_action_timer <= _pet.book_sit_max_time, "book: sentarse dura entre 15 y 30s")
+	_pet._clear_sit_book()
+	_check(is_equal_approx(_pet._position.y, _pet._feet_y - float(_pet._window.size.y)), "book: levantarse vuelve al suelo")
+
+	_pet._book_timer = 0.01
+	_pet._tick_book_reading(0.02)
+	_check(_pet._book_phase == _pet.BookPhase.END_LEAVE, "book: terminados los minutos se va de nuevo")
+	_check(_pet._pet_sprite.animation == &"walk_book", "book: se va todavia con walk_book")
+
+	_advance_book_until(_pet.BookPhase.END_HIDDEN)
+	_check(_pet._book_phase == _pet.BookPhase.END_HIDDEN, "book: se oculta tras la segunda salida")
+	_pet._tick_book(5.0)
+	_check(_pet._book_phase == _pet.BookPhase.END_RETURN, "book: tras 5s vuelve por segunda vez")
+	_check(not _pet._book_mode, "book: la segunda vuelta desactiva el modo libro")
+	_check(_pet._pet_sprite.animation == &"walk", "book: la segunda vuelta usa walk")
+
+	var steps := 0
+	while _pet._state == _pet.State.BOOK and steps < 6000:
+		_pet._tick_book(1.0 / 60.0)
+		steps += 1
+	_check(_pet._state == _pet.State.REST, "book: al volver al centro termina en REST")
+	_check(not _pet._book_mode, "book: el modo libro queda desactivado")
+	_check(_pet._pet_sprite.animation == &"idle", "book: el idle vuelve a la normalidad")
+
+
+func _test_book_cancel() -> void:
+	_clear_platforms()
+	_set_ground_state()
+	_pet.walk_speed = 500.0
+	_pet._start_book_event()
+	_advance_book_until(_pet.BookPhase.READING)
+	_check(_pet._state == _pet.State.BOOK, "cancelar: entra en lectura")
+	_pet._cancel_book_event()
+	_check(not _pet._book_mode, "cancelar: desactiva el modo libro")
+	_check(_pet._book_phase == _pet.BookPhase.LEAVE, "cancelar: reinicia la fase para el proximo evento")
+	_check(is_equal_approx(_pet._position.y, _pet._feet_y - float(_pet._window.size.y)), "cancelar: deja el suelo sin offset")

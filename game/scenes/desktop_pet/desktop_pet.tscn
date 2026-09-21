@@ -13,12 +13,15 @@ game_chance = 0.1
 min_game_time = 10.0
 max_game_time = 60.0
 sit_sprite_raise = 10.0
-maus_chance = 0.5
+maus_chance = 0.1
 maus_chase_delay = 15.0
 scared_offset = 3.0
 platform_jump_chance = 0.1
 sit_call_chance = 0.1
 sit_call_offset = 10.0
+sit_book_chance = 0.1
+sit_book_offset = 8.0
+book_chance = 0.1
 scare_volume_db = -20.0
 
 [node name="Pet" parent="." unique_id=953983132 instance=ExtResource("1_u2nir")]

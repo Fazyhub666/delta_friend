@@ -41,6 +41,22 @@ func sit_call_end() -> void:
 	_animated_sprite.speed_scale = 1.0
 
 
+func sit_book() -> void:
+	_animated_sprite.play("sit_book")
+	_animated_sprite.speed_scale = 1.0
+
+
+func walk_book(direction: int) -> void:
+	_animated_sprite.play("walk_book")
+	_animated_sprite.speed_scale = 1.0
+	_animated_sprite.flip_h = direction == -1
+
+
+func idle_book() -> void:
+	_animated_sprite.play("idle_book")
+	_animated_sprite.speed_scale = 1.0
+
+
 func maus_walk1() -> void:
 	_animated_sprite.play("maus_walk1")
 	_animated_sprite.speed_scale = 1.0
@@ -119,6 +135,13 @@ func set_seated(seated: bool, offset: float) -> void:
 
 
 func set_sit_call_offset(enabled: bool, offset: float) -> void:
+	if enabled:
+		_animated_sprite.position = _base_sprite_pos + Vector2(0, -offset)
+	else:
+		_animated_sprite.position = _base_sprite_pos
+
+
+func set_sit_book_offset(enabled: bool, offset: float) -> void:
 	if enabled:
 		_animated_sprite.position = _base_sprite_pos + Vector2(0, -offset)
 	else:
