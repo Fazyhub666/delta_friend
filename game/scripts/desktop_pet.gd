@@ -7,6 +7,7 @@ const Pong := preload("res://scripts/pong.gd")
 const MENU_TICTACTOE := 300
 const MENU_PONG := 301
 const MENU_SHUTDOWN := 302
+const MENU_MUTE := 303
 const MAUS_SIZE := Vector2(35, 12)
 const SIZE_SCALES := [1.0, 1.5, 2.0, 2.5, 3.0]
 const SIZE_LABELS := ["x0.5", "x1.0", "x1.5", "x2.0", "x2.5"]
@@ -104,6 +105,7 @@ var _tictactoe_window: Window
 var _pong_window: Window
 var _base_win_size := Vector2i.ZERO
 var _size_scale := 1.5
+var _muted := false
 var _feet_y := 0.0
 var _platform := Rect2()
 var _launch_platform := Rect2()
@@ -305,6 +307,7 @@ func _setup_context_menu():
 	_size_menu.id_pressed.connect(_on_menu_item)
 	_context_menu.add_child(_size_menu)
 	_context_menu.add_submenu_item("Size", _size_menu.name)
+	_context_menu.add_check_item("Mute", MENU_MUTE)
 	_context_menu.add_item("Shutdown", MENU_SHUTDOWN)
 	_context_menu.add_item("Exit")
 	_context_menu.id_pressed.connect(_on_menu_item)
@@ -328,6 +331,11 @@ func _on_menu_item(id: int) -> void:
 	var idx := SIZE_OPT_IDS.find(id)
 	if idx >= 0:
 		_set_pet_scale(SIZE_SCALES[idx])
+		return
+	if id == MENU_MUTE:
+		_muted = not _muted
+		AudioServer.set_bus_mute(AudioServer.get_bus_index(&"Master"), _muted)
+		_context_menu.set_item_checked(_context_menu.get_item_index(MENU_MUTE), _muted)
 		return
 	print("[MENU] placeholder presionado: ", _context_menu.get_item_text(id))
 
