@@ -2,6 +2,7 @@ extends Node2D
 
 const MausTexture := preload("res://sprites/maus/idle.png")
 const ScareStream := preload("res://sounds/elly/scare.ogg")
+const GrabStream := preload("res://sounds/elly/snd_grab.ogg")
 const TicTacToe := preload("res://scripts/tictactoe.gd")
 const Pong := preload("res://scripts/pong.gd")
 const MENU_TICTACTOE := 300
@@ -177,6 +178,7 @@ func _unhandled_input(event):
 			_velocity = Vector2.ZERO
 			_state = State.DRAG
 			_pet.surprised()
+			_play_grab_sound()
 		else:
 			if _state == State.DRAG:
 				_enter_fall(_velocity * throw_scale)
@@ -833,6 +835,14 @@ func _play_scare_sound() -> void:
 	player.stream = ScareStream
 	player.pitch_scale = scare_pitch_scale
 	player.volume_db = scare_volume_db
+	player.finished.connect(player.queue_free)
+	add_child(player)
+	player.play()
+
+
+func _play_grab_sound() -> void:
+	var player := AudioStreamPlayer.new()
+	player.stream = GrabStream
 	player.finished.connect(player.queue_free)
 	add_child(player)
 	player.play()
