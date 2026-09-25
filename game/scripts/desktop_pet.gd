@@ -71,6 +71,7 @@ enum BookAction { IDLE, WALK, SIT }
 @export_range(5.0, 60.0, 1.0) var book_sit_max_time := 30.0
 @export_range(0.1, 4.0, 0.1) var scare_pitch_scale := 1.0
 @export_range(-40.0, 6.0, 0.5) var scare_volume_db := 0.0
+@export_range(-40.0, 6.0, 0.5) var grab_volume_db := 0.0
 
 var _state := State.REST
 var _state_timer := 0.0
@@ -843,6 +844,7 @@ func _play_scare_sound() -> void:
 func _play_grab_sound() -> void:
 	var player := AudioStreamPlayer.new()
 	player.stream = GrabStream
+	player.volume_db = grab_volume_db
 	player.finished.connect(player.queue_free)
 	add_child(player)
 	player.play()

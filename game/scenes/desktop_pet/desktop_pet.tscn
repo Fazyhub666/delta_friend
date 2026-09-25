@@ -23,5 +23,6 @@ sit_book_chance = 0.1
 sit_book_offset = 8.0
 book_chance = 0.1
 scare_volume_db = -20.0
+grab_volume_db = -20.0
 
 [node name="Pet" parent="." unique_id=953983132 instance=ExtResource("1_u2nir")]
