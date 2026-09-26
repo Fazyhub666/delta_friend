@@ -19,6 +19,7 @@ func _ready() -> void:
 	_windows_stop_helper()
 	_setup_pet()
 	_test_window_manager()
+	_test_window_toggles()
 	_test_jump_selection()
 	_test_jump_velocity()
 	_test_ground_jump_target()
@@ -28,6 +29,7 @@ func _ready() -> void:
 	_test_reset_to_ground()
 	_test_jump_simulation()
 	_test_fall_simulation()
+	_test_fall_animation()
 	_test_walk()
 	_test_preferred_walk_direction()
 	_test_maus_chase_delay()
@@ -103,6 +105,8 @@ func _set_ground_state() -> void:
 	_pet._pet.position.x = 0.0
 	_pet._state = _pet.State.REST
 	_pet._jump_timer = 999.0
+	_pet._window_standing = true
+	_pet._window_hop = true
 
 
 func _set_platform_state(p: Rect2, x: float = 560.0) -> void:
@@ -174,6 +178,72 @@ func _test_window_manager() -> void:
 	_check(_wm.platforms.is_empty(), "wm: descarta entradas con tipos invalidos")
 
 	DirAccess.remove_absolute("user://test_windows.json")
+
+
+func _test_window_toggles() -> void:
+	var fresh := desktop_pet_scene.instantiate()
+	_check(not fresh._window_standing, "ventanas: Window Standing desactivado por defecto")
+	_check(not fresh._window_hop, "ventanas: Window Hop desactivado por defecto")
+	fresh.free()
+
+	var menu: PopupMenu = _pet._context_menu
+	var standing_idx := menu.get_item_index(_pet.MENU_WINDOW_STANDING)
+	var hop_idx := menu.get_item_index(_pet.MENU_WINDOW_HOP)
+	_check(standing_idx >= 0 and menu.is_item_checkable(standing_idx), "menu: Window Standing es un item marcable")
+	_check(hop_idx >= 0 and menu.is_item_checkable(hop_idx), "menu: Window Hop es un item marcable")
+	_check(menu.get_item_text(standing_idx) == "Window Standing", "menu: la opcion se llama Window Standing")
+	_check(menu.get_item_text(hop_idx) == "Window Hop", "menu: la opcion se llama Window Hop")
+
+	_pet._window_standing = false
+	_pet._window_hop = false
+	_pet._update_window_checkmarks()
+	_check(not menu.is_item_checked(standing_idx) and not menu.is_item_checked(hop_idx), "menu: ambos items arrancan desmarcados")
+	_check(menu.is_item_disabled(hop_idx), "menu: Window Hop bloqueado sin Window Standing")
+
+	_pet._set_window_hop(true)
+	_check(not _pet._window_hop, "ventanas: Window Hop no se activa sin Window Standing")
+	_check(not menu.is_item_checked(hop_idx), "menu: Window Hop sigue desmarcado tras el intento")
+
+	_pet._set_window_standing(true)
+	_check(_pet._window_standing, "ventanas: Window Standing se activa")
+	_check(menu.is_item_checked(standing_idx), "menu: Window Standing queda marcado")
+	_check(not menu.is_item_disabled(hop_idx), "menu: Window Hop se desbloquea")
+
+	_pet._set_window_hop(true)
+	_check(_pet._window_hop, "ventanas: Window Hop se activa con Standing activa")
+	_check(menu.is_item_checked(hop_idx), "menu: Window Hop queda marcado")
+
+	_pet._set_window_standing(false)
+	_check(not _pet._window_standing and not _pet._window_hop, "ventanas: desactivar Standing tambien desactiva Hop")
+	_check(not menu.is_item_checked(hop_idx) and menu.is_item_disabled(hop_idx), "menu: Window Hop vuelve a bloquearse")
+
+	var p := Rect2(600, 900, 400, 200)
+	_set_platforms(p)
+	_set_ground_state()
+	_pet._set_window_standing(false)
+	_pet._set_window_hop(false)
+	_pet._velocity = Vector2(0, 800)
+	var res: Dictionary = _pet._find_landing(880.0, 920.0, 700.0)
+	_check(res.is_empty(), "ventanas: sin Standing no se pisa ninguna ventana al caer")
+	_check(not _pet._try_jump_to_platform(0), "ventanas: sin Hop no se intenta el salto")
+	_check(_pet._state == _pet.State.REST, "ventanas: el estado no cambia al no saltar")
+
+	_pet._set_window_standing(true)
+	_check(not _pet._window_hop, "ventanas: activar Standing no reactiva Hop por si solo")
+	_pet._velocity = Vector2(0, 800)
+	res = _pet._find_landing(880.0, 920.0, 700.0)
+	_check(res.get("rect") == p, "ventanas: con Standing se vuelve a pisar la ventana")
+	_check(not _pet._try_jump_to_platform(0), "ventanas: con Standing pero sin Hop no hay salto a ventana")
+
+	_pet._set_window_hop(true)
+	_check(_pet._try_jump_to_platform(0), "ventanas: con Hop el salto vuelve a funcionar")
+
+	_set_platform_state(p, 700.0)
+	_pet._set_window_hop(false)
+	_check(_pet._platform.size == Vector2.ZERO, "ventanas: desactivar Standing baja la pet al suelo")
+	_check(is_equal_approx(_pet._feet_y, WALK.end.y), "ventanas: los pies vuelven a la linea del suelo")
+	_set_ground_state()
+	_clear_platforms()
 
 
 func _test_jump_selection() -> void:
@@ -381,7 +451,25 @@ func _test_fall_simulation() -> void:
 		_pet._tick_fall(1.0 / 60.0)
 		steps += 1
 	_check(_pet._platform == p, "sim_caida: aterriza en la ventana del camino (%d pasos)" % steps)
-	_check(_pet._state == _pet.State.REST, "sim_caida: estado REST al aterrizar")
+	_check(_pet._state == _pet.State.LAND, "sim_caida: entra en LAND para terminar la animacion")
+	_check(_pet._pet_sprite.animation == &"jump", "sim_caida: sigue con la animacion jump")
+	_check(_pet._pet_sprite.frame >= 1, "sim_caida: reanuda la animacion desde el segundo frame")
+	_check(_pet._pet_sprite.is_playing(), "sim_caida: la animacion vuelve a reproducirse al tocar el suelo")
+	_pet._end_land()
+	_check(_pet._state == _pet.State.REST, "sim_caida: estado REST tras la animacion de aterrizaje")
+	_check(_pet._pet_sprite.animation == &"idle", "sim_caida: vuelve a idle al terminar la caida")
+
+
+func _test_fall_animation() -> void:
+	_clear_platforms()
+	_set_ground_state()
+	_pet._enter_fall(Vector2.ZERO)
+	_check(_pet._state == _pet.State.FALLING, "caida_anim: entra en FALLING")
+	_check(_pet._pet_sprite.animation == &"jump", "caida_anim: usa la animacion jump al caer")
+	_check(_pet._pet_sprite.frame == 0, "caida_anim: congelada en el primer frame")
+	_check(not _pet._pet_sprite.is_playing(), "caida_anim: no avanza mientras cae")
+	_pet._pet_sprite.frame = 3
+	_check(_pet._pet_sprite.frame == 3, "caida_anim: el frame queda congelado sin avanzar solo")
 
 
 func _test_walk() -> void:

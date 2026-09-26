@@ -9,6 +9,8 @@ const MENU_TICTACTOE := 300
 const MENU_PONG := 301
 const MENU_SHUTDOWN := 302
 const MENU_MUTE := 303
+const MENU_WINDOW_STANDING := 304
+const MENU_WINDOW_HOP := 305
 const MAUS_SIZE := Vector2(35, 12)
 const SIZE_SCALES := [1.0, 1.5, 2.0, 2.5, 3.0]
 const SIZE_LABELS := ["x0.5", "x1.0", "x1.5", "x2.0", "x2.5"]
@@ -28,7 +30,7 @@ const MAUS_CHASE_WAIT := 1.0
 const MAUS_CATCH_CLOSER := 35.0
 const MAUS_CATCH_CLOSER_LEFT := 60.0
 
-enum State { REST, WALK, SIT, GAMING, WATCH, SCARED, JUMP, DRAG, FALLING, SIT_CALL, SIT_CALL_END, SIT_BOOK, MAUS_CHASE, BOOK }
+enum State { REST, WALK, SIT, GAMING, WATCH, SCARED, JUMP, DRAG, FALLING, LAND, SIT_CALL, SIT_CALL_END, SIT_BOOK, MAUS_CHASE, BOOK }
 
 enum MausPhase { WALK1, WALK2_AWAY, WALK3_RETURN, CATCH, CATCH2_AWAY, RETURN_HOME }
 
@@ -108,6 +110,8 @@ var _pong_window: Window
 var _base_win_size := Vector2i.ZERO
 var _size_scale := 1.5
 var _muted := false
+var _window_standing := false
+var _window_hop := false
 var _feet_y := 0.0
 var _platform := Rect2()
 var _launch_platform := Rect2()
@@ -257,6 +261,10 @@ func _process(delta):
 			_tick_drag(delta)
 		State.FALLING:
 			_tick_fall(delta)
+		State.LAND:
+			_state_timer -= delta
+			if _state_timer <= 0.0:
+				_end_land()
 
 
 func _setup_bounds():
@@ -311,10 +319,13 @@ func _setup_context_menu():
 	_context_menu.add_child(_size_menu)
 	_context_menu.add_submenu_item("Size", _size_menu.name)
 	_context_menu.add_check_item("Mute", MENU_MUTE)
+	_context_menu.add_check_item("Window Standing", MENU_WINDOW_STANDING)
+	_context_menu.add_check_item("Window Hop", MENU_WINDOW_HOP)
 	_context_menu.add_item("Shutdown", MENU_SHUTDOWN)
 	_context_menu.add_item("Exit")
 	_context_menu.id_pressed.connect(_on_menu_item)
 	_update_size_checkmarks()
+	_update_window_checkmarks()
 	get_tree().root.add_child.call_deferred(_context_menu)
 
 
@@ -340,7 +351,45 @@ func _on_menu_item(id: int) -> void:
 		AudioServer.set_bus_mute(AudioServer.get_bus_index(&"Master"), _muted)
 		_context_menu.set_item_checked(_context_menu.get_item_index(MENU_MUTE), _muted)
 		return
+	if id == MENU_WINDOW_STANDING:
+		_set_window_standing(not _window_standing)
+		return
+	if id == MENU_WINDOW_HOP:
+		_set_window_hop(not _window_hop)
+		return
 	print("[MENU] placeholder presionado: ", _context_menu.get_item_text(id))
+
+
+func _set_window_standing(enabled: bool) -> void:
+	if _window_standing != enabled:
+		_window_standing = enabled
+		if not _window_standing:
+			_window_hop = false
+			if _is_on_window():
+				_reset_to_ground()
+	_update_window_checkmarks()
+
+
+func _set_window_hop(enabled: bool) -> void:
+	if enabled and not _window_standing:
+		enabled = false
+	if _window_hop != enabled:
+		_window_hop = enabled
+		if not _window_hop and _is_on_window():
+			_reset_to_ground()
+	_update_window_checkmarks()
+
+
+func _update_window_checkmarks() -> void:
+	if _context_menu == null:
+		return
+	var standing_idx := _context_menu.get_item_index(MENU_WINDOW_STANDING)
+	var hop_idx := _context_menu.get_item_index(MENU_WINDOW_HOP)
+	if standing_idx >= 0:
+		_context_menu.set_item_checked(standing_idx, _window_standing)
+	if hop_idx >= 0:
+		_context_menu.set_item_checked(hop_idx, _window_hop)
+		_context_menu.set_item_disabled(hop_idx, not _window_standing)
 
 
 func _on_play_menu_item(id: int) -> void:
@@ -776,6 +825,8 @@ func _cancel_book_event() -> void:
 func _on_pet_animation_finished() -> void:
 	if _state == State.SIT_CALL_END:
 		_end_sit_call()
+	elif _state == State.LAND:
+		_end_land()
 
 
 func _start_maus_event():
@@ -1257,25 +1308,26 @@ func _tick_fall(delta):
 func _find_landing(prev_feet: float, new_feet: float, cx: float) -> Dictionary:
 	if _velocity.y <= 0.0:
 		return {}
-	var win_h := float(_window.size.y)
-	var screen_top := _screen_bounds.position.y
 	var best_top := INF
 	var best := {}
-	for p in Windows.platforms:
-		if p.position.y > new_feet or p.position.y < prev_feet:
-			continue
-		if _launch_platform.size.x > 0.0 and absf(p.position.x - _launch_platform.position.x) < 1.0 \
-				and absf(p.position.y - _launch_platform.position.y) < 1.0:
-			continue
-		if p.end.x - p.position.x <= 1.0:
-			continue
-		if p.position.y - win_h < screen_top:
-			continue
-		if cx < p.position.x or cx > p.end.x:
-			continue
-		if p.position.y < best_top:
-			best_top = p.position.y
-			best = {"feet_y": p.position.y, "is_ground": false, "rect": p}
+	if _window_standing:
+		var win_h := float(_window.size.y)
+		var screen_top := _screen_bounds.position.y
+		for p in Windows.platforms:
+			if p.position.y > new_feet or p.position.y < prev_feet:
+				continue
+			if _launch_platform.size.x > 0.0 and absf(p.position.x - _launch_platform.position.x) < 1.0 \
+					and absf(p.position.y - _launch_platform.position.y) < 1.0:
+				continue
+			if p.end.x - p.position.x <= 1.0:
+				continue
+			if p.position.y - win_h < screen_top:
+				continue
+			if cx < p.position.x or cx > p.end.x:
+				continue
+			if p.position.y < best_top:
+				best_top = p.position.y
+				best = {"feet_y": p.position.y, "is_ground": false, "rect": p}
 	var ground_line := _walk_bounds.end.y
 	if new_feet >= ground_line:
 		if ground_line <= best_top:
@@ -1302,10 +1354,24 @@ func _land(res: Dictionary) -> void:
 	elif _book_mode:
 		_state = State.BOOK
 		_resume_book_reading()
+	elif _state == State.FALLING:
+		_begin_land()
 	else:
 		_pet.idle()
 		_state = State.REST
 		_state_timer = randf_range(min_rest_time, max_rest_time)
+
+
+func _begin_land() -> void:
+	_state = State.LAND
+	_state_timer = _pet.animation_duration(&"jump") + 0.5
+	_pet.fall_land()
+
+
+func _end_land() -> void:
+	_pet.idle()
+	_state = State.REST
+	_state_timer = randf_range(min_rest_time, max_rest_time)
 
 
 func _enter_fall(vel: Vector2) -> void:
@@ -1318,11 +1384,14 @@ func _enter_fall(vel: Vector2) -> void:
 	_launch_platform = Rect2()
 	_velocity = vel
 	_state = State.FALLING
-	_pet.surprised()
+	_pet.fall_start()
 
 
 func _validate_platform() -> void:
 	if not _is_on_window():
+		return
+	if not _window_standing:
+		_reset_to_ground()
 		return
 	var win := Vector2(_window.size)
 	var cx := _position.x + win.x * 0.5
@@ -1334,6 +1403,8 @@ func _validate_platform() -> void:
 
 
 func _try_jump_to_platform(dir_hint: int) -> bool:
+	if not _window_hop:
+		return false
 	if not Windows.active or Windows.platforms.is_empty():
 		return false
 	var win := Vector2(_window.size)

@@ -127,6 +127,19 @@ func jump(direction: int, duration: float = 0.0) -> void:
 		_animated_sprite.speed_scale = 1.0
 
 
+func fall_start() -> void:
+	_animated_sprite.play("jump")
+	_animated_sprite.speed_scale = 1.0
+	_animated_sprite.frame = 0
+	_animated_sprite.pause()
+
+
+func fall_land() -> void:
+	_animated_sprite.play("jump")
+	_animated_sprite.speed_scale = 1.0
+	_animated_sprite.frame = mini(1, maxi(_animated_sprite.sprite_frames.get_frame_count("jump") - 1, 0))
+
+
 func set_seated(seated: bool, offset: float) -> void:
 	if seated:
 		_animated_sprite.position = _base_sprite_pos + Vector2(0, -offset)
