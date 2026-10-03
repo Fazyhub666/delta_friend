@@ -127,11 +127,13 @@ func jump(direction: int, duration: float = 0.0) -> void:
 		_animated_sprite.speed_scale = 1.0
 
 
-func fall_start() -> void:
+func fall_start(direction: int = 0) -> void:
 	_animated_sprite.play("jump")
 	_animated_sprite.speed_scale = 1.0
 	_animated_sprite.frame = 0
 	_animated_sprite.pause()
+	if direction != 0:
+		_animated_sprite.flip_h = direction == -1
 
 
 func fall_land() -> void:

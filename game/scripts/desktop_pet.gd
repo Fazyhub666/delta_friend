@@ -1287,6 +1287,7 @@ func _tick_jump(delta):
 
 
 func _tick_fall(delta):
+	_update_fall_facing()
 	var win_size := Vector2(_window.size)
 	var prev_feet := _position.y + win_size.y
 	_velocity.y += gravity * delta
@@ -1384,7 +1385,20 @@ func _enter_fall(vel: Vector2) -> void:
 	_launch_platform = Rect2()
 	_velocity = vel
 	_state = State.FALLING
-	_pet.fall_start()
+	_pet.fall_start(_fall_direction())
+	_update_fall_facing()
+
+
+func _fall_direction() -> int:
+	if absf(_velocity.x) > 1.0:
+		return 1 if _velocity.x > 0.0 else -1
+	return 0
+
+
+func _update_fall_facing() -> void:
+	var dir := _fall_direction()
+	if dir != 0:
+		_pet.face(dir)
 
 
 func _validate_platform() -> void:
